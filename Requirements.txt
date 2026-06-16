@@ -1,0 +1,44 @@
+Advance Web Application Project Requirements
+machine problems 20pts
+mp1 Laravel CRUD api 12pts
+    NodeJS CRUD api 20pts
+mp2 Laravel CRUD api 12pts
+    NodeJS CRUD api 20pts
+
+mp3 CRUD Jquery/datatables multiple file uploads for mp1 20pts
+mp4 CRUD Jquery/datatables frontend for mp2
+mp5 generate and send tokens for authentication. 15pts
+    save token on users table. 5pts
+mp6 User registration, Login API via Jquery AJAX. admin can update role of user. admin can deactivate users. List users on datatable. Laravel 15pts. NodeJS 20pts
+mp7  use Sequelize ORM on CRUD functions 20pts
+
+term test Lab 40pts
+transactions CRUD api and jquery front end. the sample UI implementation will have lower points. laravel 20pts NodeJS 25pts
+send an email when updating the transaction 5pts
+send an email when updating the transaction. attach the receipt with order details in pdf 10pts
+
+quiz 4 15pts
+Jquery validation for mp3 and mp4
+
+quiz 5 15pts
+jquery/api search/autocomplete on homepage. 
+
+quiz 6 15pts
+route protection. add a middleware to check a user's role. only admin roles can access crud api.   
+
+quiz 7 15pts
+three(3) js charts. bar line and pie charts 
+
+unit test 1 20pts
+UI/UX Design
+
+unit test 2 20pts
+jquery pagination (datatable pagination is not applicable) 15pts
+jquery infinite scroll (datatable pagination is not applicable) 20pts
+
+
+unit 3 40
+functional requirements completeness 10
+app complexity. added features 10
+program execution 10
+project contribution 10

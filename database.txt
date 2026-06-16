@@ -1,0 +1,173 @@
+-- ============================================================
+-- Tunify: Instruments, Accessories & Parts E-Commerce System
+-- Database Creation Script
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS tunify_db;
+USE tunify_db;
+
+-- ------------------------------------------------------------
+-- 1. users
+-- ------------------------------------------------------------
+CREATE TABLE users (
+  id            INT          NOT NULL AUTO_INCREMENT,
+  email         VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role          ENUM('admin','customer') NOT NULL DEFAULT 'customer',
+  created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at    TIMESTAMP    NULL DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+-- ------------------------------------------------------------
+-- 2. customer  (extended profile, 1-to-1 with users)
+-- ------------------------------------------------------------
+CREATE TABLE customer (
+  id                 INT          NOT NULL AUTO_INCREMENT,
+  user_id            INT          NOT NULL UNIQUE,
+  first_name         VARCHAR(100) NOT NULL,
+  last_name          VARCHAR(100) NOT NULL,
+  address_line       VARCHAR(255) NULL,
+  zip_code           VARCHAR(20)  NULL,
+  phone              VARCHAR(30)  NULL,
+  profile_image_path VARCHAR(255) NULL,
+  created_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at         TIMESTAMP    NULL DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_customer_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- 3. brand
+-- ------------------------------------------------------------
+CREATE TABLE brand (
+  id          INT          NOT NULL AUTO_INCREMENT,
+  name        VARCHAR(100) NOT NULL UNIQUE,
+  description TEXT         NULL,
+  logo_path   VARCHAR(255) NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at  TIMESTAMP    NULL DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+-- ------------------------------------------------------------
+-- 4. category
+-- ------------------------------------------------------------
+CREATE TABLE category (
+  id          INT          NOT NULL AUTO_INCREMENT,
+  name        VARCHAR(100) NOT NULL UNIQUE,
+  description TEXT         NULL,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at  TIMESTAMP    NULL DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+-- ------------------------------------------------------------
+-- 5. supplier
+-- ------------------------------------------------------------
+CREATE TABLE supplier (
+  id           INT          NOT NULL AUTO_INCREMENT,
+  name         VARCHAR(255) NOT NULL UNIQUE,
+  contact_name VARCHAR(150) NULL,
+  email        VARCHAR(255) NULL,
+  phone        VARCHAR(30)  NULL,
+  address_line VARCHAR(255) NULL,
+  created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at   TIMESTAMP    NULL DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+-- ------------------------------------------------------------
+-- 6. item
+-- ------------------------------------------------------------
+CREATE TABLE item (
+  id          INT            NOT NULL AUTO_INCREMENT,
+  brand_id    INT            NOT NULL,
+  category_id INT            NOT NULL,
+  supplier_id INT            NOT NULL,
+  description VARCHAR(255)   NOT NULL,
+  cost_price  DECIMAL(10, 2) NOT NULL,
+  sell_price  DECIMAL(10, 2) NOT NULL,
+  image_path  VARCHAR(255)   NULL,
+  created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at  TIMESTAMP      NULL DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_item_brand
+    FOREIGN KEY (brand_id) REFERENCES brand (id)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_item_category
+    FOREIGN KEY (category_id) REFERENCES category (id)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_item_supplier
+    FOREIGN KEY (supplier_id) REFERENCES supplier (id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- 7. stock  (1-to-1 with item)
+-- ------------------------------------------------------------
+CREATE TABLE stock (
+  id       INT NOT NULL AUTO_INCREMENT,
+  item_id  INT NOT NULL UNIQUE,
+  quantity INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_stock_item
+    FOREIGN KEY (item_id) REFERENCES item (id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- 8. orderinfo
+-- ------------------------------------------------------------
+CREATE TABLE orderinfo (
+  id           INT            NOT NULL AUTO_INCREMENT,
+  user_id      INT            NOT NULL,
+  shipping_fee DECIMAL(10, 2) NOT NULL DEFAULT 100.00,
+  date_placed  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_shipped TIMESTAMP      NULL DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_orderinfo_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- 9. orderline  (pivot — composite PK, no surrogate key)
+-- ------------------------------------------------------------
+CREATE TABLE orderline (
+  orderinfo_id INT            NOT NULL,
+  item_id      INT            NOT NULL,
+  quantity     INT            NOT NULL DEFAULT 1,
+  sell_price   DECIMAL(10, 2) NOT NULL,
+  PRIMARY KEY (orderinfo_id, item_id),
+  CONSTRAINT fk_orderline_orderinfo
+    FOREIGN KEY (orderinfo_id) REFERENCES orderinfo (id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_orderline_item
+    FOREIGN KEY (item_id) REFERENCES item (id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- 10. review  (one review per customer per item)
+-- ------------------------------------------------------------
+CREATE TABLE review (
+  id         INT       NOT NULL AUTO_INCREMENT,
+  user_id    INT       NOT NULL,
+  item_id    INT       NOT NULL,
+  rating     TINYINT   NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment    TEXT      NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_review_user_item (user_id, item_id),
+  CONSTRAINT fk_review_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_review_item
+    FOREIGN KEY (item_id) REFERENCES item (id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
