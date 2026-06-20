@@ -6,6 +6,12 @@ dotenv.config();
 
 const userRoutes = require("./routes/user");
 const dashboardRoutes = require("./routes/dashboard");
+const categoryRoutes = require("./routes/category");
+const brandRoutes = require("./routes/brand");
+const supplierRoutes = require("./routes/supplier");
+const itemRoutes = require("./routes/item");
+const stockRoutes = require("./routes/stock");
+const orderRoutes = require("./routes/order");
 const app = express();
 
 app.use(cors());
@@ -18,6 +24,12 @@ app.use("/images", express.static(path.join(__dirname, "images")));
 // Mount user and chart routes directly under /api/v1
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", dashboardRoutes);
+app.use("/api/v1", categoryRoutes);
+app.use("/api/v1", brandRoutes);
+app.use("/api/v1", supplierRoutes);
+app.use("/api/v1", itemRoutes);
+app.use("/api/v1", stockRoutes);
+app.use("/api/v1", orderRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Connected Successfully ${process.env.PORT} `);

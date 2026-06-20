@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
-  const Supplier = sequelize.define(
-    "Supplier",
+  const Category = sequelize.define(
+    "Category",
     {
       id: {
         type: DataTypes.INTEGER,
@@ -8,21 +8,18 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
       },
       name: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.STRING(100),
         allowNull: false,
         unique: true,
       },
-      contact_name: DataTypes.STRING(150),
-      email: DataTypes.STRING(255),
-      phone: DataTypes.STRING(30),
-      address_line: DataTypes.STRING(255),
+      description: DataTypes.TEXT,
       deleted_at: DataTypes.DATE,
     },
     {
-      tableName: "supplier",
+      tableName: "category",
       createdAt: "created_at",
       updatedAt: false,
     },
   );
-  return Supplier;
+  return Category;
 };

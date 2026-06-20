@@ -3,14 +3,20 @@ const Item = require('./Item');
 const Stock = require('./Stock');
 const User = require('./User');
 const Customer = require('./Customer');
+const Brand = require('./Brand');
+const Category = require('./Category');
+const Supplier = require('./Supplier');
 
 const db = {};
 db.Item = Item(sequelize, require('sequelize').DataTypes);
 db.Stock = Stock(sequelize, require('sequelize').DataTypes);
 db.User = User(sequelize, require('sequelize').DataTypes);
 db.Customer = Customer(sequelize, require('sequelize').DataTypes);
+db.Brand = Brand(sequelize, require('sequelize').DataTypes);
+db.Category = Category(sequelize, require('sequelize').DataTypes);
+db.Supplier = Supplier(sequelize, require('sequelize').DataTypes);
 
-// Define associations natively
+// stock relationship to item
 db.Item.hasOne(db.Stock, {
     foreignKey: 'item_id',
     onDelete: 'CASCADE'
@@ -19,6 +25,7 @@ db.Stock.belongsTo(db.Item, {
     foreignKey: 'item_id'
 });
 
+// user relationship to customer
 db.User.hasOne(db.Customer, {
     foreignKey: 'user_id',
     onDelete: 'CASCADE'
@@ -26,6 +33,31 @@ db.User.hasOne(db.Customer, {
 db.Customer.belongsTo(db.User, {
     foreignKey: 'user_id'
 });
+
+// brand relationship to item
+db.Brand.hasMany(db.Item, {
+    foreignKey: 'brand_id'
+});
+db.Item.belongsTo(db.Brand, {
+    foreignKey: 'brand_id'
+});
+
+// category relationship to item
+db.Category.hasMany(db.Item, {
+    foreignKey: 'category_id'
+});
+db.Item.belongsTo(db.Category, {
+    foreignKey: 'category_id'
+});
+
+// supplier relationship to item
+db.Supplier.hasMany(db.Item, {
+    foreignKey: 'supplier_id'
+});
+db.Item.belongsTo(db.Supplier, {
+    foreignKey: 'supplier_id'
+});
+
 
 db.sequelize = sequelize;
 db.Sequelize = require('sequelize');

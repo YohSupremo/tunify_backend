@@ -1,14 +1,17 @@
 -- ============================================================
--- Tunify: Instruments, Accessories & Parts E-Commerce System
--- Database Creation Script
+-- Tunify Database Reconstruction & Seed Script
+-- WARNING: This will drop the database and delete all existing data.
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS tunify_db;
+DROP DATABASE IF EXISTS tunify_db;
+CREATE DATABASE tunify_db;
 USE tunify_db;
 
 -- ------------------------------------------------------------
--- 1. users
+-- 1. Create Tables
 -- ------------------------------------------------------------
+
+-- Table 1: users
 CREATE TABLE users (
   id            INT          NOT NULL AUTO_INCREMENT,
   email         VARCHAR(255) NOT NULL UNIQUE,
@@ -19,9 +22,7 @@ CREATE TABLE users (
   PRIMARY KEY (id)
 );
 
--- ------------------------------------------------------------
--- 2. customer  (extended profile, 1-to-1 with users)
--- ------------------------------------------------------------
+-- Table 2: customer
 CREATE TABLE customer (
   id                 INT          NOT NULL AUTO_INCREMENT,
   user_id            INT          NOT NULL UNIQUE,
@@ -39,9 +40,7 @@ CREATE TABLE customer (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ------------------------------------------------------------
--- 3. brand
--- ------------------------------------------------------------
+-- Table 3: brand
 CREATE TABLE brand (
   id          INT          NOT NULL AUTO_INCREMENT,
   name        VARCHAR(100) NOT NULL UNIQUE,
@@ -52,9 +51,7 @@ CREATE TABLE brand (
   PRIMARY KEY (id)
 );
 
--- ------------------------------------------------------------
--- 4. category
--- ------------------------------------------------------------
+-- Table 4: category
 CREATE TABLE category (
   id          INT          NOT NULL AUTO_INCREMENT,
   name        VARCHAR(100) NOT NULL UNIQUE,
@@ -64,9 +61,7 @@ CREATE TABLE category (
   PRIMARY KEY (id)
 );
 
--- ------------------------------------------------------------
--- 5. supplier
--- ------------------------------------------------------------
+-- Table 5: supplier
 CREATE TABLE supplier (
   id           INT          NOT NULL AUTO_INCREMENT,
   name         VARCHAR(255) NOT NULL UNIQUE,
@@ -79,9 +74,7 @@ CREATE TABLE supplier (
   PRIMARY KEY (id)
 );
 
--- ------------------------------------------------------------
--- 6. item
--- ------------------------------------------------------------
+-- Table 6: item
 CREATE TABLE item (
   id          INT            NOT NULL AUTO_INCREMENT,
   brand_id    INT            NOT NULL,
@@ -105,9 +98,7 @@ CREATE TABLE item (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- ------------------------------------------------------------
--- 7. stock  (1-to-1 with item)
--- ------------------------------------------------------------
+-- Table 7: stock
 CREATE TABLE stock (
   id       INT NOT NULL AUTO_INCREMENT,
   item_id  INT NOT NULL UNIQUE,
@@ -118,9 +109,7 @@ CREATE TABLE stock (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ------------------------------------------------------------
--- 8. orderinfo
--- ------------------------------------------------------------
+-- Table 8: orderinfo
 CREATE TABLE orderinfo (
   id           INT            NOT NULL AUTO_INCREMENT,
   user_id      INT            NOT NULL,
@@ -133,9 +122,7 @@ CREATE TABLE orderinfo (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- ------------------------------------------------------------
--- 9. orderline  (pivot — composite PK, no surrogate key)
--- ------------------------------------------------------------
+-- Table 9: orderline
 CREATE TABLE orderline (
   orderinfo_id INT            NOT NULL,
   item_id      INT            NOT NULL,
@@ -150,9 +137,7 @@ CREATE TABLE orderline (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- ------------------------------------------------------------
--- 10. review  (one review per customer per item)
--- ------------------------------------------------------------
+-- Table 10: review
 CREATE TABLE review (
   id         INT       NOT NULL AUTO_INCREMENT,
   user_id    INT       NOT NULL,
@@ -171,3 +156,131 @@ CREATE TABLE review (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+
+-- ------------------------------------------------------------
+-- 2. Seed Initial Data
+-- ------------------------------------------------------------
+
+-- Seed Admin User (Username: admin@tunify.com, Password: password123 hashed via bcrypt)
+INSERT INTO users (id, email, password_hash, role) 
+VALUES (1, 'admin@tunify.com', '$2b$10$NtkwMo/JUVxNnEsd0twKdew/n7RNPZwrXxGbjyIsPoHsSXOFz2kjC', 'admin');
+
+-- Seed Customer details for Admin user
+INSERT INTO customer (id, user_id, first_name, last_name, address_line, zip_code, phone) 
+VALUES (1, 1, 'Alwin', 'Benitez', '', '', '');
+
+-- Seed Suppliers
+INSERT INTO supplier (id, name, contact_name, email, phone, address_line) VALUES 
+(1, 'Fender Asia Pacific', 'Juan dela Cruz', 'fender@example.com', '+63 912 000 0001', 'Makati City, Metro Manila'),
+(2, 'Yamaha Music PH', 'Maria Santos', 'yamaha@example.com', '+63 912 000 0002', 'BGC, Taguig City'),
+(3, 'Roland Philippines', 'Pedro Reyes', 'roland@example.com', '+63 912 000 0003', 'Quezon City, Metro Manila');
+
+-- Seed Default Brands
+INSERT INTO brand (id, name, description) VALUES
+(1, 'Fender', 'Fender musical instruments'),
+(2, 'Gibson', 'Gibson musical instruments'),
+(3, 'Yamaha', 'Yamaha musical instruments'),
+(4, 'Roland', 'Roland musical instruments'),
+(5, 'Shure', 'Shure musical instruments'),
+(6, 'Ibanez', 'Ibanez musical instruments'),
+(7, 'Marshall', 'Marshall musical instruments'),
+(8, 'Meinl', 'Meinl musical instruments'),
+(9, 'Nord', 'Nord musical instruments'),
+(10, 'Taylor', 'Taylor musical instruments'),
+(11, 'Korg', 'Korg musical instruments'),
+(12, 'Pearl', 'Pearl musical instruments'),
+(13, 'Audio-Technica', 'Audio-Technica musical instruments'),
+(14, 'Boss', 'Boss musical instruments'),
+(15, 'D\'Addario', 'D\'Addario musical instruments'),
+(16, 'Hercules', 'Hercules musical instruments'),
+(17, 'Evans', 'Evans musical instruments');
+
+-- Seed Default Categories
+INSERT INTO category (id, name, description) VALUES
+(1, 'string', 'Stringed instruments'),
+(2, 'percussion', 'Drums and percussion'),
+(3, 'keys', 'Keyboard instruments'),
+(4, 'wind', 'Woodwind and brass'),
+(5, 'vocals', 'Microphones and vocal gear'),
+(6, 'accessories', 'Accessories and parts');
+
+-- Seed all 32 products into item table (with mapped supplier_ids based on brands)
+INSERT INTO item (id, brand_id, category_id, supplier_id, description, cost_price, sell_price, image_path) VALUES
+(1, 1, 1, 1, 'Stratocaster Standard', 19500.00, 32500.00, 'images/guitar_strat.png'),
+(2, 4, 2, 3, 'Roland TD-17KVX', 40800.00, 68000.00, 'images/drums_roland.png'),
+(3, 3, 3, 2, 'Yamaha P-125', 17940.00, 29900.00, 'images/piano_yamaha.png'),
+(4, 2, 1, 1, 'Les Paul Classic', 33000.00, 55000.00, 'images/guitar_strat.png'),
+(5, 8, 2, 2, 'Cajon Box Kit', 4080.00, 6800.00, 'images/drums_roland.png'),
+(6, 9, 3, 3, 'Nord Stage 3 Compact', 111000.00, 185000.00, 'images/piano_yamaha.png'),
+(7, 1, 1, 1, 'Telecaster Player', 17100.00, 28500.00, NULL),
+(8, 4, 2, 3, 'SPD-SX Pad', 23400.00, 39000.00, NULL),
+(9, 1, 1, 1, 'Jazz Bass Standard', 21480.00, 35800.00, NULL),
+(10, 2, 1, 1, 'SG Standard', 29100.00, 48500.00, NULL),
+(11, 6, 1, 1, 'RG450DX', 11340.00, 18900.00, NULL),
+(12, 10, 1, 1, 'GS Mini Mahogany', 25200.00, 42000.00, NULL),
+(13, 4, 3, 3, 'FP-30X Digital Piano', 26700.00, 44500.00, NULL),
+(14, 3, 1, 2, 'FG800 Acoustic', 7680.00, 12800.00, NULL),
+(15, 9, 3, 3, 'Piano 5 73', 85200.00, 142000.00, NULL),
+(16, 11, 3, 2, 'B2 Digital Piano', 14700.00, 24500.00, NULL),
+(17, 12, 2, 2, 'Export EXX725', 31200.00, 52000.00, NULL),
+(18, 8, 2, 2, 'HCS Cymbal Pack', 6900.00, 11500.00, NULL),
+(19, 3, 4, 2, 'YAS-280 Alto Sax', 53700.00, 89500.00, NULL),
+(20, 5, 5, 1, 'SM58 Vocal Mic', 4680.00, 7800.00, NULL),
+(21, 13, 5, 1, 'AT2020 Condenser', 5520.00, 9200.00, NULL),
+(22, 14, 6, 1, 'Katana 50 Gen 3', 12900.00, 21500.00, NULL),
+(23, 15, 6, 1, 'EXL110 10-Pack', 1920.00, 3200.00, NULL),
+(24, 16, 6, 1, 'GS414B Guitar Stand', 1110.00, 1850.00, NULL),
+(25, 7, 6, 1, 'MG15 Gold', 5880.00, 9800.00, NULL),
+(26, 12, 2, 2, 'Roadshow 5pc', 23100.00, 38500.00, NULL),
+(27, 1, 6, 1, 'Mustang LT25', 8520.00, 14200.00, NULL),
+(28, 17, 2, 2, 'HD Dry Pack', 2700.00, 4500.00, NULL),
+(29, 5, 5, 1, 'SRH840A Headphones', 6720.00, 11200.00, NULL),
+(30, 11, 3, 2, 'MINilogue XD', 41100.00, 68500.00, NULL),
+(31, 6, 1, 1, 'SR500E Bass', 19680.00, 32800.00, NULL),
+(32, 3, 3, 2, 'AvantGrand N1X', 129000.00, 215000.00, NULL);
+
+-- Seed stock levels for all products
+INSERT INTO stock (item_id, quantity) VALUES
+(1, 14),
+(2, 6),
+(3, 22),
+(4, 4),
+(5, 31),
+(6, 3),
+(7, 11),
+(8, 9),
+(9, 8),
+(10, 5),
+(11, 17),
+(12, 10),
+(13, 13),
+(14, 26),
+(15, 4),
+(16, 15),
+(17, 7),
+(18, 19),
+(19, 6),
+(20, 42),
+(21, 24),
+(22, 12),
+(23, 55),
+(24, 38),
+(25, 16),
+(26, 11),
+(27, 14),
+(28, 27),
+(29, 18),
+(30, 5),
+(31, 9),
+(32, 2);
+
+-- Seed the 3 default orders into orderinfo and orderline
+INSERT INTO orderinfo (id, user_id, shipping_fee, date_placed, date_shipped) VALUES
+(2401, 1, 100.00, '2024-11-02 10:00:00', '2024-11-02 15:00:00'),
+(2402, 1, 100.00, '2024-11-18 10:00:00', '2024-11-19 10:00:00'),
+(2403, 1, 100.00, '2024-12-05 10:00:00', NULL);
+
+INSERT INTO orderline (orderinfo_id, item_id, quantity, sell_price) VALUES
+(2401, 1, 1, 32500.00),
+(2402, 2, 1, 68000.00),
+(2403, 3, 1, 29900.00);

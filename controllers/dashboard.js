@@ -4,7 +4,7 @@ const sequelize = db.sequelize;
 exports.addressChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      "SELECT count(address_line) as total, address_line as addressline FROM customer WHERE deleted_at IS NULL GROUP BY address_line ORDER BY total DESC",
+      "SELECT count(address_line) as total, address_line as addressline FROM customer WHERE deleted_at IS NULL AND address_line IS NOT NULL AND address_line != '' GROUP BY address_line ORDER BY total DESC",
       { type: sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
@@ -14,10 +14,32 @@ exports.addressChart = async (req, res) => {
   }
 };
 
+exports.categoryChart = async (req, res) => {
+  try {
+    const rows = await sequelize.query(
+      "SELECT c.name as category, COALESCE(SUM(ol.quantity), 0) as total FROM category c LEFT JOIN item i ON c.id = i.category_id LEFT JOIN orderline ol ON i.id = ol.item_id GROUP BY c.name",
+      { type: sequelize.QueryTypes.SELECT }
+    );
+    const totalSold = rows.reduce((sum, r) => sum + parseInt(r.total || 0), 0);
+    const result = rows.map(r => {
+      const total = parseInt(r.total || 0);
+      const pct = totalSold > 0 ? Math.round((total / totalSold) * 100) : 0;
+      return {
+        label: r.category.charAt(0).toUpperCase() + r.category.slice(1),
+        pct: pct
+      };
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching category chart data" });
+  }
+};
+
 exports.salesChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      "SELECT monthname(oi.date_placed) as month, sum(ol.quantity * i.sell_price) as total FROM orderinfo oi INNER JOIN orderline ol ON oi.id = ol.orderinfo_id INNER JOIN item i ON i.id = ol.item_id GROUP BY month(oi.date_placed)",
+      "SELECT monthname(oi.date_placed) as month, sum(ol.quantity * ol.sell_price) as total FROM orderinfo oi INNER JOIN orderline ol ON oi.id = ol.orderinfo_id GROUP BY month(oi.date_placed)",
       { type: sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
@@ -37,5 +59,39 @@ exports.itemsChart = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error fetching items chart data" });
+  }
+};
+
+exports.dashboardStats = async (req, res) => {
+  try {
+    const [revOrderRes] = await sequelize.query(
+      "SELECT COALESCE(SUM(ol.quantity * ol.sell_price), 0) as total_revenue, COUNT(DISTINCT oi.id) as order_count FROM orderinfo oi LEFT JOIN orderline ol ON oi.id = ol.orderinfo_id",
+      { type: sequelize.QueryTypes.SELECT }
+    );
+    
+    const [custRes] = await sequelize.query(
+      "SELECT COUNT(*) as count FROM customer WHERE deleted_at IS NULL",
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    const [lowStockRes] = await sequelize.query(
+      "SELECT COUNT(*) as count FROM stock s INNER JOIN item i ON s.item_id = i.id WHERE s.quantity <= 5 AND i.deleted_at IS NULL",
+      { type: sequelize.QueryTypes.SELECT }
+    );
+
+    const dbRevenue = parseFloat(revOrderRes.total_revenue || 0);
+    const dbOrders = parseInt(revOrderRes.order_count || 0);
+    const dbCustomers = parseInt(custRes.count || 0);
+    const dbLowStock = parseInt(lowStockRes.count || 0);
+
+    res.status(200).json({
+      revenue: dbRevenue,
+      orders: dbOrders,
+      customers: dbCustomers,
+      lowStock: dbLowStock
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching dashboard stats" });
   }
 };
