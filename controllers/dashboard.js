@@ -4,7 +4,7 @@ const sequelize = db.sequelize;
 exports.addressChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      "SELECT count(address_line) as total, address_line as addressline FROM customer WHERE deleted_at IS NULL AND address_line IS NOT NULL AND address_line != '' GROUP BY address_line ORDER BY total DESC",
+      "SELECT count(id) as total, CONCAT(city, ', ', province) as addressline FROM customer_addresses WHERE deleted_at IS NULL GROUP BY city, province ORDER BY total DESC",
       { type: sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });

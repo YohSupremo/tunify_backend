@@ -46,8 +46,6 @@ exports.registerUser = async (req, res) => {
       first_name: fname,
       last_name: lname,
       phone: "",
-      address_line: "",
-      zip_code: "",
       profile_image_path: null
     });
 
@@ -116,7 +114,7 @@ exports.loginUser = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { first_name, last_name, address_line, zip_code, phone, user_id } = req.body;
+    const { first_name, last_name, phone, user_id } = req.body;
 
     if (!user_id) {
       return res.status(400).json({ error: "User ID is required" });
@@ -132,8 +130,6 @@ exports.updateProfile = async (req, res) => {
       defaults: {
         first_name: first_name || "",
         last_name: last_name || "",
-        address_line: address_line || "",
-        zip_code: zip_code || "",
         phone: phone || "",
         profile_image_path: imagePath,
         user_id: user_id
@@ -144,21 +140,163 @@ exports.updateProfile = async (req, res) => {
       await customer.update({
         first_name: first_name !== undefined ? first_name : customer.first_name,
         last_name: last_name !== undefined ? last_name : customer.last_name,
-        address_line: address_line !== undefined ? address_line : customer.address_line,
-        zip_code: zip_code !== undefined ? zip_code : customer.zip_code,
         phone: phone !== undefined ? phone : customer.phone,
         profile_image_path: imagePath || customer.profile_image_path
       });
     }
 
+    // Retrieve default address for UI/session consistency
+    const [addressRows] = await sequelize.query(
+      "SELECT street, city, province, zip_code FROM customer_addresses WHERE user_id = ? AND is_default = 1 AND deleted_at IS NULL LIMIT 1",
+      {
+        replacements: [user_id],
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    const customerJSON = customer.toJSON();
+    customerJSON.street = addressRows ? addressRows.street : "";
+    customerJSON.city = addressRows ? addressRows.city : "";
+    customerJSON.province = addressRows ? addressRows.province : "";
+    customerJSON.zip_code = addressRows ? addressRows.zip_code : "";
+
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      customer
+      customer: customerJSON
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error updating profile", details: error.message });
+  }
+};
+
+exports.getAddresses = async (req, res) => {
+  try {
+    const userId = req.body.user.id;
+    const rows = await sequelize.query(
+      "SELECT id, label, street, city, province, zip_code, is_default FROM customer_addresses WHERE user_id = ? AND deleted_at IS NULL ORDER BY is_default DESC, id DESC",
+      {
+        replacements: [userId],
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+    res.status(200).json({ success: true, addresses: rows });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch addresses" });
+  }
+};
+
+exports.addAddress = async (req, res) => {
+  try {
+    const userId = req.body.user.id;
+    const { label, street, city, province, zip_code, is_default } = req.body;
+
+    if (!street || !city || !province || !zip_code) {
+      return res.status(400).json({ error: "Street, city, province, and zip code are required" });
+    }
+
+    const defaultVal = is_default ? 1 : 0;
+
+    if (defaultVal === 1) {
+      await sequelize.query(
+        "UPDATE customer_addresses SET is_default = 0 WHERE user_id = ?",
+        { replacements: [userId], type: sequelize.QueryTypes.UPDATE }
+      );
+    }
+
+    const [resultId] = await sequelize.query(
+      "INSERT INTO customer_addresses (user_id, label, street, city, province, zip_code, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      {
+        replacements: [userId, label || "Home", street, city, province, zip_code, defaultVal],
+        type: sequelize.QueryTypes.INSERT
+      }
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Address added successfully",
+      address: { id: resultId, label, street, city, province, zip_code, is_default: defaultVal }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to add address" });
+  }
+};
+
+exports.deleteAddress = async (req, res) => {
+  try {
+    const userId = req.body.user.id;
+    const addressId = req.params.id;
+
+    // 1. Soft-delete the target address and clear its is_default status
+    await sequelize.query(
+      "UPDATE customer_addresses SET deleted_at = NOW(), is_default = 0 WHERE id = ? AND user_id = ?",
+      {
+        replacements: [addressId, userId],
+        type: sequelize.QueryTypes.UPDATE
+      }
+    );
+
+    // 2. Check if the user still has a default address
+    const defaultAddresses = await sequelize.query(
+      "SELECT id FROM customer_addresses WHERE user_id = ? AND deleted_at IS NULL AND is_default = 1 LIMIT 1",
+      {
+        replacements: [userId],
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
+    // 3. If no default address remains, check for any other active addresses
+    if (defaultAddresses.length === 0) {
+      const remainingAddresses = await sequelize.query(
+        "SELECT id FROM customer_addresses WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT 1",
+        {
+          replacements: [userId],
+          type: sequelize.QueryTypes.SELECT
+        }
+      );
+
+      // 4. Promote the most recent active address to default
+      if (remainingAddresses.length > 0) {
+        const newDefaultId = remainingAddresses[0].id;
+        await sequelize.query(
+          "UPDATE customer_addresses SET is_default = 1 WHERE id = ?",
+          {
+            replacements: [newDefaultId],
+            type: sequelize.QueryTypes.UPDATE
+          }
+        );
+      }
+    }
+
+    res.status(200).json({ success: true, message: "Address deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete address" });
+  }
+};
+
+exports.setDefaultAddress = async (req, res) => {
+  try {
+    const userId = req.body.user.id;
+    const addressId = req.params.id;
+
+    await sequelize.query(
+      "UPDATE customer_addresses SET is_default = 0 WHERE user_id = ?",
+      { replacements: [userId], type: sequelize.QueryTypes.UPDATE }
+    );
+
+    await sequelize.query(
+      "UPDATE customer_addresses SET is_default = 1 WHERE id = ? AND user_id = ?",
+      { replacements: [addressId, userId], type: sequelize.QueryTypes.UPDATE }
+    );
+
+    res.status(200).json({ success: true, message: "Default address updated" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update default address" });
   }
 };
 

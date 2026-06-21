@@ -20,14 +20,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: false,
       },
-      address_line: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
-      zip_code: {
-        type: DataTypes.STRING(20),
-        allowNull: true,
-      },
       phone: {
         type: DataTypes.STRING(30),
         allowNull: true,

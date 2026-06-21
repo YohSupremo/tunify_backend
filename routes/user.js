@@ -12,5 +12,11 @@ router.post("/update-profile", upload.single("image"), userController.updateProf
 router.delete("/deactivate", userController.deactivateUser);
 router.get("/", userController.getUser);
 
+// Address endpoints
+router.get("/addresses", isAuthenticatedUser, userController.getAddresses);
+router.post("/addresses", isAuthenticatedUser, userController.addAddress);
+router.delete("/addresses/:id", isAuthenticatedUser, userController.deleteAddress);
+router.put("/addresses/:id/default", isAuthenticatedUser, userController.setDefaultAddress);
+
 
 module.exports = router;

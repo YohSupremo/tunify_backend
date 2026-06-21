@@ -1,5 +1,5 @@
 -- ============================================================
--- Tunify Database Reconstruction & Seed Script
+-- Tunify Database Reconstruction & Seed Script (v3)
 -- WARNING: This will drop the database and delete all existing data.
 -- ============================================================
 
@@ -28,14 +28,30 @@ CREATE TABLE customer (
   user_id            INT          NOT NULL UNIQUE,
   first_name         VARCHAR(100) NOT NULL,
   last_name          VARCHAR(100) NOT NULL,
-  address_line       VARCHAR(255) NULL,
-  zip_code           VARCHAR(20)  NULL,
   phone              VARCHAR(30)  NULL,
   profile_image_path VARCHAR(255) NULL,
   created_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted_at         TIMESTAMP    NULL DEFAULT NULL,
   PRIMARY KEY (id),
   CONSTRAINT fk_customer_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Table 2b: customer_addresses
+CREATE TABLE customer_addresses (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  user_id    INT          NOT NULL,
+  label      VARCHAR(50)  NOT NULL DEFAULT 'Home',
+  street     VARCHAR(255) NOT NULL,
+  city       VARCHAR(100) NOT NULL,
+  province   VARCHAR(100) NOT NULL,
+  zip_code   VARCHAR(20)  NOT NULL,
+  is_default BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP    NULL DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_address_user
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -74,7 +90,7 @@ CREATE TABLE supplier (
   PRIMARY KEY (id)
 );
 
--- Table 6: item
+-- Table 6: item  (quantity merged in from old "stock" table)
 CREATE TABLE item (
   id          INT            NOT NULL AUTO_INCREMENT,
   brand_id    INT            NOT NULL,
@@ -83,6 +99,7 @@ CREATE TABLE item (
   description VARCHAR(255)   NOT NULL,
   cost_price  DECIMAL(10, 2) NOT NULL,
   sell_price  DECIMAL(10, 2) NOT NULL,
+  quantity    INT            NOT NULL DEFAULT 0,
   image_path  VARCHAR(255)   NULL,
   created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted_at  TIMESTAMP      NULL DEFAULT NULL,
@@ -98,27 +115,37 @@ CREATE TABLE item (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- Table 7: stock
-CREATE TABLE stock (
-  id       INT NOT NULL AUTO_INCREMENT,
-  item_id  INT NOT NULL UNIQUE,
-  quantity INT NOT NULL DEFAULT 0,
-  PRIMARY KEY (id),
-  CONSTRAINT fk_stock_item
-    FOREIGN KEY (item_id) REFERENCES item (id)
-    ON DELETE CASCADE ON UPDATE CASCADE
+-- Table 7: settings  (global config, one row, typed columns)
+CREATE TABLE settings (
+  id                   INT            NOT NULL DEFAULT 1,
+  low_stock_threshold  INT            NOT NULL DEFAULT 5,
+  default_shipping_fee DECIMAL(10,2)  NOT NULL DEFAULT 100.00,
+  currency             VARCHAR(10)    NOT NULL DEFAULT 'PHP',
+  tax_rate             DECIMAL(5,4)   NOT NULL DEFAULT 0.12,
+  store_name           VARCHAR(100)   NOT NULL DEFAULT 'Tunify',
+  store_contact_email  VARCHAR(255)   NOT NULL,
+  store_contact_phone  VARCHAR(30)    NOT NULL,
+  PRIMARY KEY (id)
 );
 
 -- Table 8: orderinfo
 CREATE TABLE orderinfo (
-  id           INT            NOT NULL AUTO_INCREMENT,
-  user_id      INT            NOT NULL,
-  shipping_fee DECIMAL(10, 2) NOT NULL DEFAULT 100.00,
-  date_placed  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  date_shipped TIMESTAMP      NULL DEFAULT NULL,
+  id               INT            NOT NULL AUTO_INCREMENT,
+  user_id          INT            NOT NULL,
+  address_id       INT            NOT NULL,
+  shipping_street   VARCHAR(255)  NOT NULL,
+  shipping_city     VARCHAR(100)  NOT NULL,
+  shipping_province VARCHAR(100)  NOT NULL,
+  shipping_zip      VARCHAR(20)   NOT NULL,
+  shipping_fee     DECIMAL(10, 2) NOT NULL DEFAULT 100.00,
+  date_placed      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_shipped     TIMESTAMP      NULL DEFAULT NULL,
   PRIMARY KEY (id),
   CONSTRAINT fk_orderinfo_user
     FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_orderinfo_address
+    FOREIGN KEY (address_id) REFERENCES customer_addresses (id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -156,6 +183,22 @@ CREATE TABLE review (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- Table 11: payments
+CREATE TABLE payments (
+  id              INT            NOT NULL AUTO_INCREMENT,
+  orderinfo_id    INT            NOT NULL UNIQUE,
+  payment_method  ENUM('cod','gcash','card','bank_transfer') NOT NULL DEFAULT 'cod',
+  amount_paid     DECIMAL(10, 2) NOT NULL,
+  payment_status  ENUM('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
+  transaction_ref VARCHAR(255)   NULL,
+  paid_at         TIMESTAMP      NULL DEFAULT NULL,
+  created_at      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_payment_orderinfo
+    FOREIGN KEY (orderinfo_id) REFERENCES orderinfo (id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 
 -- ------------------------------------------------------------
 -- 2. Seed Initial Data
@@ -166,8 +209,16 @@ INSERT INTO users (id, email, password_hash, role)
 VALUES (1, 'admin@tunify.com', '$2b$10$NtkwMo/JUVxNnEsd0twKdew/n7RNPZwrXxGbjyIsPoHsSXOFz2kjC', 'admin');
 
 -- Seed Customer details for Admin user
-INSERT INTO customer (id, user_id, first_name, last_name, address_line, zip_code, phone) 
-VALUES (1, 1, 'Alwin', 'Benitez', '', '', '');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) 
+VALUES (1, 1, 'Alwin', 'Benitez', '');
+
+-- Seed a default address for Admin user
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default)
+VALUES (1, 1, 'Home', '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', TRUE);
+
+-- Seed global settings (single row of store-wide config)
+INSERT INTO settings (id, low_stock_threshold, default_shipping_fee, currency, tax_rate, store_name, store_contact_email, store_contact_phone)
+VALUES (1, 5, 100.00, 'PHP', 0.12, 'Tunify', 'support@tunify.com', '+63 912 000 0000');
 
 -- Seed Suppliers
 INSERT INTO supplier (id, name, contact_name, email, phone, address_line) VALUES 
@@ -204,83 +255,54 @@ INSERT INTO category (id, name, description) VALUES
 (5, 'vocals', 'Microphones and vocal gear'),
 (6, 'accessories', 'Accessories and parts');
 
--- Seed all 32 products into item table (with mapped supplier_ids based on brands)
-INSERT INTO item (id, brand_id, category_id, supplier_id, description, cost_price, sell_price, image_path) VALUES
-(1, 1, 1, 1, 'Stratocaster Standard', 19500.00, 32500.00, 'images/guitar_strat.png'),
-(2, 4, 2, 3, 'Roland TD-17KVX', 40800.00, 68000.00, 'images/drums_roland.png'),
-(3, 3, 3, 2, 'Yamaha P-125', 17940.00, 29900.00, 'images/piano_yamaha.png'),
-(4, 2, 1, 1, 'Les Paul Classic', 33000.00, 55000.00, 'images/guitar_strat.png'),
-(5, 8, 2, 2, 'Cajon Box Kit', 4080.00, 6800.00, 'images/drums_roland.png'),
-(6, 9, 3, 3, 'Nord Stage 3 Compact', 111000.00, 185000.00, 'images/piano_yamaha.png'),
-(7, 1, 1, 1, 'Telecaster Player', 17100.00, 28500.00, NULL),
-(8, 4, 2, 3, 'SPD-SX Pad', 23400.00, 39000.00, NULL),
-(9, 1, 1, 1, 'Jazz Bass Standard', 21480.00, 35800.00, NULL),
-(10, 2, 1, 1, 'SG Standard', 29100.00, 48500.00, NULL),
-(11, 6, 1, 1, 'RG450DX', 11340.00, 18900.00, NULL),
-(12, 10, 1, 1, 'GS Mini Mahogany', 25200.00, 42000.00, NULL),
-(13, 4, 3, 3, 'FP-30X Digital Piano', 26700.00, 44500.00, NULL),
-(14, 3, 1, 2, 'FG800 Acoustic', 7680.00, 12800.00, NULL),
-(15, 9, 3, 3, 'Piano 5 73', 85200.00, 142000.00, NULL),
-(16, 11, 3, 2, 'B2 Digital Piano', 14700.00, 24500.00, NULL),
-(17, 12, 2, 2, 'Export EXX725', 31200.00, 52000.00, NULL),
-(18, 8, 2, 2, 'HCS Cymbal Pack', 6900.00, 11500.00, NULL),
-(19, 3, 4, 2, 'YAS-280 Alto Sax', 53700.00, 89500.00, NULL),
-(20, 5, 5, 1, 'SM58 Vocal Mic', 4680.00, 7800.00, NULL),
-(21, 13, 5, 1, 'AT2020 Condenser', 5520.00, 9200.00, NULL),
-(22, 14, 6, 1, 'Katana 50 Gen 3', 12900.00, 21500.00, NULL),
-(23, 15, 6, 1, 'EXL110 10-Pack', 1920.00, 3200.00, NULL),
-(24, 16, 6, 1, 'GS414B Guitar Stand', 1110.00, 1850.00, NULL),
-(25, 7, 6, 1, 'MG15 Gold', 5880.00, 9800.00, NULL),
-(26, 12, 2, 2, 'Roadshow 5pc', 23100.00, 38500.00, NULL),
-(27, 1, 6, 1, 'Mustang LT25', 8520.00, 14200.00, NULL),
-(28, 17, 2, 2, 'HD Dry Pack', 2700.00, 4500.00, NULL),
-(29, 5, 5, 1, 'SRH840A Headphones', 6720.00, 11200.00, NULL),
-(30, 11, 3, 2, 'MINilogue XD', 41100.00, 68500.00, NULL),
-(31, 6, 1, 1, 'SR500E Bass', 19680.00, 32800.00, NULL),
-(32, 3, 3, 2, 'AvantGrand N1X', 129000.00, 215000.00, NULL);
-
--- Seed stock levels for all products
-INSERT INTO stock (item_id, quantity) VALUES
-(1, 14),
-(2, 6),
-(3, 22),
-(4, 4),
-(5, 31),
-(6, 3),
-(7, 11),
-(8, 9),
-(9, 8),
-(10, 5),
-(11, 17),
-(12, 10),
-(13, 13),
-(14, 26),
-(15, 4),
-(16, 15),
-(17, 7),
-(18, 19),
-(19, 6),
-(20, 42),
-(21, 24),
-(22, 12),
-(23, 55),
-(24, 38),
-(25, 16),
-(26, 11),
-(27, 14),
-(28, 27),
-(29, 18),
-(30, 5),
-(31, 9),
-(32, 2);
+-- Seed all 32 products into item table, quantity now included directly
+INSERT INTO item (id, brand_id, category_id, supplier_id, description, cost_price, sell_price, quantity, image_path) VALUES
+(1, 1, 1, 1, 'Stratocaster Standard', 19500.00, 32500.00, 14, 'images/guitar_strat.png'),
+(2, 4, 2, 3, 'Roland TD-17KVX', 40800.00, 68000.00, 6, 'images/drums_roland.png'),
+(3, 3, 3, 2, 'Yamaha P-125', 17940.00, 29900.00, 22, 'images/piano_yamaha.png'),
+(4, 2, 1, 1, 'Les Paul Classic', 33000.00, 55000.00, 4, 'images/guitar_strat.png'),
+(5, 8, 2, 2, 'Cajon Box Kit', 4080.00, 6800.00, 31, 'images/drums_roland.png'),
+(6, 9, 3, 3, 'Nord Stage 3 Compact', 111000.00, 185000.00, 3, 'images/piano_yamaha.png'),
+(7, 1, 1, 1, 'Telecaster Player', 17100.00, 28500.00, 11, NULL),
+(8, 4, 2, 3, 'SPD-SX Pad', 23400.00, 39000.00, 9, NULL),
+(9, 1, 1, 1, 'Jazz Bass Standard', 21480.00, 35800.00, 8, NULL),
+(10, 2, 1, 1, 'SG Standard', 29100.00, 48500.00, 5, NULL),
+(11, 6, 1, 1, 'RG450DX', 11340.00, 18900.00, 17, NULL),
+(12, 10, 1, 1, 'GS Mini Mahogany', 25200.00, 42000.00, 10, NULL),
+(13, 4, 3, 3, 'FP-30X Digital Piano', 26700.00, 44500.00, 13, NULL),
+(14, 3, 1, 2, 'FG800 Acoustic', 7680.00, 12800.00, 26, NULL),
+(15, 9, 3, 3, 'Piano 5 73', 85200.00, 142000.00, 4, NULL),
+(16, 11, 3, 2, 'B2 Digital Piano', 14700.00, 24500.00, 15, NULL),
+(17, 12, 2, 2, 'Export EXX725', 31200.00, 52000.00, 7, NULL),
+(18, 8, 2, 2, 'HCS Cymbal Pack', 6900.00, 11500.00, 19, NULL),
+(19, 3, 4, 2, 'YAS-280 Alto Sax', 53700.00, 89500.00, 6, NULL),
+(20, 5, 5, 1, 'SM58 Vocal Mic', 4680.00, 7800.00, 42, NULL),
+(21, 13, 5, 1, 'AT2020 Condenser', 5520.00, 9200.00, 24, NULL),
+(22, 14, 6, 1, 'Katana 50 Gen 3', 12900.00, 21500.00, 12, NULL),
+(23, 15, 6, 1, 'EXL110 10-Pack', 1920.00, 3200.00, 55, NULL),
+(24, 16, 6, 1, 'GS414B Guitar Stand', 1110.00, 1850.00, 38, NULL),
+(25, 7, 6, 1, 'MG15 Gold', 5880.00, 9800.00, 16, NULL),
+(26, 12, 2, 2, 'Roadshow 5pc', 23100.00, 38500.00, 11, NULL),
+(27, 1, 6, 1, 'Mustang LT25', 8520.00, 14200.00, 14, NULL),
+(28, 17, 2, 2, 'HD Dry Pack', 2700.00, 4500.00, 27, NULL),
+(29, 5, 5, 1, 'SRH840A Headphones', 6720.00, 11200.00, 18, NULL),
+(30, 11, 3, 2, 'MINilogue XD', 41100.00, 68500.00, 5, NULL),
+(31, 6, 1, 1, 'SR500E Bass', 19680.00, 32800.00, 9, NULL),
+(32, 3, 3, 2, 'AvantGrand N1X', 129000.00, 215000.00, 2, NULL);
 
 -- Seed the 3 default orders into orderinfo and orderline
-INSERT INTO orderinfo (id, user_id, shipping_fee, date_placed, date_shipped) VALUES
-(2401, 1, 100.00, '2024-11-02 10:00:00', '2024-11-02 15:00:00'),
-(2402, 1, 100.00, '2024-11-18 10:00:00', '2024-11-19 10:00:00'),
-(2403, 1, 100.00, '2024-12-05 10:00:00', NULL);
+INSERT INTO orderinfo (id, user_id, address_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed, date_shipped) VALUES
+(2401, 1, 1, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-02 10:00:00', '2024-11-02 15:00:00'),
+(2402, 1, 1, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-18 10:00:00', '2024-11-19 10:00:00'),
+(2403, 1, 1, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-12-05 10:00:00', NULL);
 
 INSERT INTO orderline (orderinfo_id, item_id, quantity, sell_price) VALUES
 (2401, 1, 1, 32500.00),
 (2402, 2, 1, 68000.00),
 (2403, 3, 1, 29900.00);
+
+-- Seed payments for the 3 default orders
+INSERT INTO payments (orderinfo_id, payment_method, amount_paid, payment_status, transaction_ref, paid_at) VALUES
+(2401, 'gcash', 32600.00, 'paid', 'GC-20241102-001', '2024-11-02 09:55:00'),
+(2402, 'cod', 68100.00, 'paid', NULL, '2024-11-19 10:00:00'),
+(2403, 'card', 30000.00, 'pending', 'CARD-20241205-003', NULL);
