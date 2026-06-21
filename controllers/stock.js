@@ -1,29 +1,22 @@
 const db = require("../models");
-const Stock = db.Stock;
 const Item = db.Item;
 const Category = db.Category;
 
 // 1. GET ALL STOCKS (mapped to frontend expectations)
 exports.getStocks = async (req, res) => {
   try {
-    const stocks = await Stock.findAll({
+    const items = await Item.findAll({
+      where: { deleted_at: null },
       include: [
-        {
-          model: Item,
-          attributes: ["id", "description"],
-          where: { deleted_at: null },
-          include: [
-            { model: Category, attributes: ["name"] }
-          ]
-        }
+        { model: Category, attributes: ["name"] }
       ]
     });
 
-    const mappedStocks = stocks.map(s => ({
-      id: s.Item ? s.Item.id : s.item_id, // Return item_id as the ID for frontend lookup
-      name: s.Item ? s.Item.description : "Unknown Item",
-      category: (s.Item && s.Item.Category) ? s.Item.Category.name : "uncategorized",
-      stock: s.quantity
+    const mappedStocks = items.map(i => ({
+      id: i.id,
+      name: i.name,
+      category: i.Category ? i.Category.name : "uncategorized",
+      stock: i.quantity
     }));
 
     res.status(200).json(mappedStocks);
@@ -42,14 +35,15 @@ exports.updateStock = async (req, res) => {
       return res.status(400).json({ error: "Item ID and quantity are required" });
     }
 
-    const [stock, created] = await Stock.findOrCreate({
-      where: { item_id: itemId },
-      defaults: { quantity: quantity }
+    const item = await Item.findOne({
+      where: { id: itemId, deleted_at: null }
     });
 
-    if (!created) {
-      await stock.update({ quantity });
+    if (!item) {
+      return res.status(404).json({ error: "Item not found" });
     }
+
+    await item.update({ quantity: Number(quantity) });
 
     res.status(200).json({ success: true, message: "Stock updated successfully!" });
   } catch (error) {

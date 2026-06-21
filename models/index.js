@@ -1,6 +1,5 @@
 const sequelize = require('../config/database');
 const Item = require('./Item');
-const Stock = require('./Stock');
 const User = require('./User');
 const Customer = require('./Customer');
 const Brand = require('./Brand');
@@ -9,21 +8,11 @@ const Supplier = require('./Supplier');
 
 const db = {};
 db.Item = Item(sequelize, require('sequelize').DataTypes);
-db.Stock = Stock(sequelize, require('sequelize').DataTypes);
 db.User = User(sequelize, require('sequelize').DataTypes);
 db.Customer = Customer(sequelize, require('sequelize').DataTypes);
 db.Brand = Brand(sequelize, require('sequelize').DataTypes);
 db.Category = Category(sequelize, require('sequelize').DataTypes);
 db.Supplier = Supplier(sequelize, require('sequelize').DataTypes);
-
-// stock relationship to item
-db.Item.hasOne(db.Stock, {
-    foreignKey: 'item_id',
-    onDelete: 'CASCADE'
-});
-db.Stock.belongsTo(db.Item, {
-    foreignKey: 'item_id'
-});
 
 // user relationship to customer
 db.User.hasOne(db.Customer, {
@@ -57,7 +46,6 @@ db.Supplier.hasMany(db.Item, {
 db.Item.belongsTo(db.Supplier, {
     foreignKey: 'supplier_id'
 });
-
 
 db.sequelize = sequelize;
 db.Sequelize = require('sequelize');

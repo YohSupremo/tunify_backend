@@ -10,5 +10,6 @@ router.get("/items", itemController.getItems);
 router.post("/items", isAuthenticatedUser, itemController.createItem);
 router.put("/items", isAuthenticatedUser, itemController.updateItem);
 router.delete("/items", isAuthenticatedUser, itemController.deleteItem);
+router.patch("/items/restore", isAuthenticatedUser, itemController.restoreItem);
 
 module.exports = router;

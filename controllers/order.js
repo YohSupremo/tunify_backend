@@ -19,7 +19,7 @@ exports.getOrders = async (req, res) => {
         DATE_FORMAT(oi.date_placed, '%Y-%m-%d') as date,
         CASE WHEN oi.date_shipped IS NULL THEN 'Processing' ELSE 'Shipped' END as status,
         COALESCE(SUM(ol.quantity * ol.sell_price), 0) as total,
-        GROUP_CONCAT(i.description SEPARATOR '||') as items_list,
+        GROUP_CONCAT(i.name SEPARATOR '||') as items_list,
         DATE_FORMAT(oi.date_shipped, '%Y-%m-%d') as date_shipped
       FROM orderinfo oi
       LEFT JOIN orderline ol ON oi.id = ol.orderinfo_id
@@ -85,7 +85,7 @@ exports.placeOrder = async (req, res) => {
 
       // Decrement stock quantity
       await db.sequelize.query(
-        "UPDATE stock SET quantity = GREATEST(quantity - :quantity, 0) WHERE item_id = :itemId",
+        "UPDATE item SET quantity = GREATEST(quantity - :quantity, 0) WHERE id = :itemId",
         {
           replacements: {
             quantity: item.quantity,

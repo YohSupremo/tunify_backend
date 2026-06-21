@@ -22,9 +22,13 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 1
       },
-      description: {
-        type: DataTypes.STRING(255),
+      name: {
+        type: DataTypes.STRING(150),
         allowNull: false,
+      },
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
       cost_price: {
         type: DataTypes.DECIMAL(10, 2),
@@ -33,6 +37,11 @@ module.exports = (sequelize, DataTypes) => {
       sell_price: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
+      },
+      quantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
       },
       image_path: {
         type: DataTypes.STRING(255),

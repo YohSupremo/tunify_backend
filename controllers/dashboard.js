@@ -52,7 +52,7 @@ exports.salesChart = async (req, res) => {
 exports.itemsChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      "SELECT i.description as items, sum(ol.quantity) as total FROM item i INNER JOIN orderline ol ON i.id = ol.item_id GROUP BY i.description",
+      "SELECT i.name as items, sum(ol.quantity) as total FROM item i INNER JOIN orderline ol ON i.id = ol.item_id GROUP BY i.name",
       { type: sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
@@ -75,7 +75,7 @@ exports.dashboardStats = async (req, res) => {
     );
 
     const [lowStockRes] = await sequelize.query(
-      "SELECT COUNT(*) as count FROM stock s INNER JOIN item i ON s.item_id = i.id WHERE s.quantity <= 5 AND i.deleted_at IS NULL",
+      "SELECT COUNT(*) as count FROM item WHERE quantity <= 5 AND deleted_at IS NULL",
       { type: sequelize.QueryTypes.SELECT }
     );
 

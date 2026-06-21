@@ -12,11 +12,12 @@ const supplierRoutes = require("./routes/supplier");
 const itemRoutes = require("./routes/item");
 const stockRoutes = require("./routes/stock");
 const orderRoutes = require("./routes/order");
+const customerRoutes = require("./routes/customer");
 const app = express();
 
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve uploaded profile pictures statically
 app.use("/images", express.static(path.join(__dirname, "images")));
@@ -30,6 +31,7 @@ app.use("/api/v1", supplierRoutes);
 app.use("/api/v1", itemRoutes);
 app.use("/api/v1", stockRoutes);
 app.use("/api/v1", orderRoutes);
+app.use("/api/v1", customerRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log(`Connected Successfully ${process.env.PORT} `);

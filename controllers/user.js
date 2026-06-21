@@ -103,6 +103,7 @@ exports.loginUser = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
+        role: user.role,
         name: customer ? (customer.first_name + " " + customer.last_name).trim() : ""
       }
     });

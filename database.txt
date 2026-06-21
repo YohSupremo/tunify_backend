@@ -204,9 +204,9 @@ CREATE TABLE payments (
 -- 2. Seed Initial Data
 -- ------------------------------------------------------------
 
--- Seed Admin User (Username: admin@tunify.com, Password: password123 hashed via bcrypt)
+-- Seed Admin User (Username: admin1@gmail.com, Password: password123 hashed via bcrypt)
 INSERT INTO users (id, email, password_hash, role) 
-VALUES (1, 'admin@tunify.com', '$2b$10$NtkwMo/JUVxNnEsd0twKdew/n7RNPZwrXxGbjyIsPoHsSXOFz2kjC', 'admin');
+VALUES (1, 'admin1@gmail.com', '$2b$10$KXbvnjxdPkZ2kCMNy1U/weUwyHCIrkLVEJH86ERCz.4ehI5iWhv6C', 'admin');
 
 -- Seed Customer details for Admin user
 INSERT INTO customer (id, user_id, first_name, last_name, phone) 
