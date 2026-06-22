@@ -7,6 +7,14 @@ const upload = require("../utils/multer");
 // GET all customers (admin listing — no auth required for datatable load, but admin check is on frontend)
 router.get("/customers", isAuthenticatedUser, customerController.getCustomers);
 
+// CREATE new customer
+router.post("/customers", isAuthenticatedUser, upload.single("image"), (req, res, next) => {
+  if (req.user) {
+    req.body.user = req.user;
+  }
+  next();
+}, customerController.createCustomer);
+
 // GET single customer detail + addresses
 router.get("/customers/:id", isAuthenticatedUser, customerController.getCustomerById);
 

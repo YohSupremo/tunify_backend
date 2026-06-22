@@ -96,11 +96,11 @@ CREATE TABLE item (
   brand_id    INT            NOT NULL,
   category_id INT            NOT NULL,
   supplier_id INT            NOT NULL,
-  description VARCHAR(255)   NOT NULL,
+  name        VARCHAR(150)   NOT NULL,
+  description TEXT           NULL,
   cost_price  DECIMAL(10, 2) NOT NULL,
   sell_price  DECIMAL(10, 2) NOT NULL,
   quantity    INT            NOT NULL DEFAULT 0,
-  image_path  VARCHAR(255)   NULL,
   created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted_at  TIMESTAMP      NULL DEFAULT NULL,
   PRIMARY KEY (id),
@@ -113,6 +113,20 @@ CREATE TABLE item (
   CONSTRAINT fk_item_supplier
     FOREIGN KEY (supplier_id) REFERENCES supplier (id)
     ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- Table 6b: item_images
+CREATE TABLE item_images (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  item_id    INT          NOT NULL,
+  image_path VARCHAR(255) NOT NULL,
+  is_primary BOOLEAN      NOT NULL DEFAULT FALSE,
+  sort_order INT          NOT NULL DEFAULT 0,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_item_image_item
+    FOREIGN KEY (item_id) REFERENCES item (id)
+    ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- Table 7: settings  (global config, one row, typed columns)
@@ -204,9 +218,9 @@ CREATE TABLE payments (
 -- 2. Seed Initial Data
 -- ------------------------------------------------------------
 
--- Seed Admin User (Username: admin1@gmail.com, Password: password123 hashed via bcrypt)
+-- Seed Admin User (Username: admin@tunify.com, Password: password123 hashed via bcrypt)
 INSERT INTO users (id, email, password_hash, role) 
-VALUES (1, 'admin1@gmail.com', '$2b$10$KXbvnjxdPkZ2kCMNy1U/weUwyHCIrkLVEJH86ERCz.4ehI5iWhv6C', 'admin');
+VALUES (1, 'admin@tunify.com', '$2b$10$NtkwMo/JUVxNnEsd0twKdew/n7RNPZwrXxGbjyIsPoHsSXOFz2kjC', 'admin');
 
 -- Seed Customer details for Admin user
 INSERT INTO customer (id, user_id, first_name, last_name, phone) 
@@ -256,39 +270,55 @@ INSERT INTO category (id, name, description) VALUES
 (6, 'accessories', 'Accessories and parts');
 
 -- Seed all 32 products into item table, quantity now included directly
-INSERT INTO item (id, brand_id, category_id, supplier_id, description, cost_price, sell_price, quantity, image_path) VALUES
-(1, 1, 1, 1, 'Stratocaster Standard', 19500.00, 32500.00, 14, 'images/guitar_strat.png'),
-(2, 4, 2, 3, 'Roland TD-17KVX', 40800.00, 68000.00, 6, 'images/drums_roland.png'),
-(3, 3, 3, 2, 'Yamaha P-125', 17940.00, 29900.00, 22, 'images/piano_yamaha.png'),
-(4, 2, 1, 1, 'Les Paul Classic', 33000.00, 55000.00, 4, 'images/guitar_strat.png'),
-(5, 8, 2, 2, 'Cajon Box Kit', 4080.00, 6800.00, 31, 'images/drums_roland.png'),
-(6, 9, 3, 3, 'Nord Stage 3 Compact', 111000.00, 185000.00, 3, 'images/piano_yamaha.png'),
-(7, 1, 1, 1, 'Telecaster Player', 17100.00, 28500.00, 11, NULL),
-(8, 4, 2, 3, 'SPD-SX Pad', 23400.00, 39000.00, 9, NULL),
-(9, 1, 1, 1, 'Jazz Bass Standard', 21480.00, 35800.00, 8, NULL),
-(10, 2, 1, 1, 'SG Standard', 29100.00, 48500.00, 5, NULL),
-(11, 6, 1, 1, 'RG450DX', 11340.00, 18900.00, 17, NULL),
-(12, 10, 1, 1, 'GS Mini Mahogany', 25200.00, 42000.00, 10, NULL),
-(13, 4, 3, 3, 'FP-30X Digital Piano', 26700.00, 44500.00, 13, NULL),
-(14, 3, 1, 2, 'FG800 Acoustic', 7680.00, 12800.00, 26, NULL),
-(15, 9, 3, 3, 'Piano 5 73', 85200.00, 142000.00, 4, NULL),
-(16, 11, 3, 2, 'B2 Digital Piano', 14700.00, 24500.00, 15, NULL),
-(17, 12, 2, 2, 'Export EXX725', 31200.00, 52000.00, 7, NULL),
-(18, 8, 2, 2, 'HCS Cymbal Pack', 6900.00, 11500.00, 19, NULL),
-(19, 3, 4, 2, 'YAS-280 Alto Sax', 53700.00, 89500.00, 6, NULL),
-(20, 5, 5, 1, 'SM58 Vocal Mic', 4680.00, 7800.00, 42, NULL),
-(21, 13, 5, 1, 'AT2020 Condenser', 5520.00, 9200.00, 24, NULL),
-(22, 14, 6, 1, 'Katana 50 Gen 3', 12900.00, 21500.00, 12, NULL),
-(23, 15, 6, 1, 'EXL110 10-Pack', 1920.00, 3200.00, 55, NULL),
-(24, 16, 6, 1, 'GS414B Guitar Stand', 1110.00, 1850.00, 38, NULL),
-(25, 7, 6, 1, 'MG15 Gold', 5880.00, 9800.00, 16, NULL),
-(26, 12, 2, 2, 'Roadshow 5pc', 23100.00, 38500.00, 11, NULL),
-(27, 1, 6, 1, 'Mustang LT25', 8520.00, 14200.00, 14, NULL),
-(28, 17, 2, 2, 'HD Dry Pack', 2700.00, 4500.00, 27, NULL),
-(29, 5, 5, 1, 'SRH840A Headphones', 6720.00, 11200.00, 18, NULL),
-(30, 11, 3, 2, 'MINilogue XD', 41100.00, 68500.00, 5, NULL),
-(31, 6, 1, 1, 'SR500E Bass', 19680.00, 32800.00, 9, NULL),
-(32, 3, 3, 2, 'AvantGrand N1X', 129000.00, 215000.00, 2, NULL);
+INSERT INTO item (id, brand_id, category_id, supplier_id, name, description, cost_price, sell_price, quantity) VALUES
+(1, 1, 1, 1, 'Stratocaster Standard', 'Classic alder body electric guitar with maple neck and single-coil pickups, known for its bright, versatile tone.', 19500.00, 32500.00, 14),
+(2, 4, 2, 3, 'Roland TD-17KVX', 'Electronic drum kit with mesh-head snare and toms, ideal for practice and live performance with realistic feel.', 40800.00, 68000.00, 6),
+(3, 3, 3, 2, 'Yamaha P-125', 'Compact 88-key digital piano with weighted action and built-in speakers, suited for home practice and gigging.', 17940.00, 29900.00, 22),
+(4, 2, 1, 1, 'Les Paul Classic', 'Mahogany body electric guitar with humbucker pickups, delivering warm sustain and a classic rock tone.', 33000.00, 55000.00, 4),
+(5, 8, 2, 2, 'Cajon Box Kit', 'Wooden box percussion instrument with internal snare wires, popular for acoustic and folk ensembles.', 4080.00, 6800.00, 31),
+(6, 9, 3, 3, 'Nord Stage 3 Compact', 'Performance keyboard combining piano, organ, and synth engines for professional stage use.', 111000.00, 185000.00, 3),
+(7, 1, 1, 1, 'Telecaster Player', 'Versatile electric guitar with twin single-coil pickups, known for its bright, twangy tone.', 17100.00, 28500.00, 11),
+(8, 4, 2, 3, 'SPD-SX Pad', 'Compact sampling percussion pad for triggering samples and loops during live performance.', 23400.00, 39000.00, 9),
+(9, 1, 1, 1, 'Jazz Bass Standard', 'Four-string electric bass with dual single-coil pickups, offering punchy low-end and clarity.', 21480.00, 35800.00, 8),
+(10, 2, 1, 1, 'SG Standard', 'Lightweight mahogany electric guitar with a thinner body and dual humbuckers for a thicker tone.', 29100.00, 48500.00, 5),
+(11, 6, 1, 1, 'RG450DX', 'Fast-neck electric guitar designed for shredding, with high-output humbuckers.', 11340.00, 18900.00, 17),
+(12, 10, 1, 1, 'GS Mini Mahogany', 'Compact acoustic guitar with solid mahogany top, great for travel and smaller players.', 25200.00, 42000.00, 10),
+(13, 4, 3, 3, 'FP-30X Digital Piano', 'Portable digital piano with authentic hammer-action keys and onboard speakers.', 26700.00, 44500.00, 13),
+(14, 3, 1, 2, 'FG800 Acoustic', 'Entry-level acoustic guitar with solid spruce top, popular among beginners.', 7680.00, 12800.00, 26),
+(15, 9, 3, 3, 'Piano 5 73', '73-key stage piano with premium sampled grand piano sounds for professional performers.', 85200.00, 142000.00, 4),
+(16, 11, 3, 2, 'B2 Digital Piano', 'Affordable digital piano with weighted keys, ideal for students and home use.', 14700.00, 24500.00, 15),
+(17, 12, 2, 2, 'Export EXX725', 'Five-piece drum shell pack with hardware, designed for gigging drummers.', 31200.00, 52000.00, 7),
+(18, 8, 2, 2, 'HCS Cymbal Pack', 'Starter cymbal set including hi-hats, crash, and ride, ideal for new drummers.', 6900.00, 11500.00, 19),
+(19, 3, 4, 2, 'YAS-280 Alto Sax', 'Student-level alto saxophone with smooth key action and reliable intonation.', 53700.00, 89500.00, 6),
+(20, 5, 5, 1, 'SM58 Vocal Mic', 'Industry-standard dynamic vocal microphone known for durability and clear sound.', 4680.00, 7800.00, 42),
+(21, 13, 5, 1, 'AT2020 Condenser', 'Studio condenser microphone with wide dynamic range, ideal for recording vocals and instruments.', 5520.00, 9200.00, 24),
+(22, 14, 6, 1, 'Katana 50 Gen 3', 'Versatile guitar amplifier with built-in effects and multiple amp tones.', 12900.00, 21500.00, 12),
+(23, 15, 6, 1, 'EXL110 10-Pack', 'Nickel-wound electric guitar strings, 10-pack bundle for frequent restringing.', 1920.00, 3200.00, 55),
+(24, 16, 6, 1, 'GS414B Guitar Stand', 'Sturdy folding guitar stand with padded supports to protect instrument finish.', 1110.00, 1850.00, 38),
+(25, 7, 6, 1, 'MG15 Gold', 'Compact practice amplifier with classic Marshall tone shaping.', 5880.00, 9800.00, 16),
+(26, 12, 2, 2, 'Roadshow 5pc', 'Affordable five-piece drum kit suited for beginners and small venues.', 23100.00, 38500.00, 11),
+(27, 1, 6, 1, 'Mustang LT25', 'Compact practice amplifier with built-in digital effects and presets.', 8520.00, 14200.00, 14),
+(28, 17, 2, 2, 'HD Dry Pack', 'Drumhead dampening pack for reducing overtones and shaping drum sound.', 2700.00, 4500.00, 27),
+(29, 5, 5, 1, 'SRH840A Headphones', 'Closed-back studio monitor headphones with accurate, detailed sound reproduction.', 6720.00, 11200.00, 18),
+(30, 11, 3, 2, 'MINilogue XD', 'Analog synthesizer with digital multi-engine, popular for sound design and live performance.', 41100.00, 68500.00, 5),
+(31, 6, 1, 1, 'SR500E Bass', 'Lightweight electric bass guitar with active electronics for a modern tone.', 19680.00, 32800.00, 9),
+(32, 3, 3, 2, 'AvantGrand N1X', 'Hybrid piano combining acoustic grand piano action with digital sound technology.', 129000.00, 215000.00, 2);
+
+-- Seed item images (primary + additional shots for first 6 products as examples)
+INSERT INTO item_images (item_id, image_path, is_primary, sort_order) VALUES
+(1, 'images/guitar_strat_1.png', TRUE,  1),
+(1, 'images/guitar_strat_2.png', FALSE, 2),
+(1, 'images/guitar_strat_3.png', FALSE, 3),
+(2, 'images/drums_roland_1.png', TRUE,  1),
+(2, 'images/drums_roland_2.png', FALSE, 2),
+(3, 'images/piano_yamaha_1.png', TRUE,  1),
+(3, 'images/piano_yamaha_2.png', FALSE, 2),
+(3, 'images/piano_yamaha_3.png', FALSE, 3),
+(4, 'images/les_paul_1.png',     TRUE,  1),
+(4, 'images/les_paul_2.png',     FALSE, 2),
+(5, 'images/cajon_1.png',        TRUE,  1),
+(6, 'images/nord_stage_1.png',   TRUE,  1),
+(6, 'images/nord_stage_2.png',   FALSE, 2);
 
 -- Seed the 3 default orders into orderinfo and orderline
 INSERT INTO orderinfo (id, user_id, address_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed, date_shipped) VALUES

@@ -123,7 +123,18 @@ exports.updateProfile = async (req, res) => {
 
     let imagePath = null;
     if (req.file) {
-      imagePath = req.file.path.replace(/\\/g, "/");
+      imagePath = "images/" + req.file.filename;
+      const fs = require("fs");
+      const path = require("path");
+      const frontendDir = path.join(__dirname, "..", "..", "tunify", "images");
+      try {
+        if (!fs.existsSync(frontendDir)) {
+          fs.mkdirSync(frontendDir, { recursive: true });
+        }
+        fs.copyFileSync(req.file.path, path.join(frontendDir, req.file.filename));
+      } catch (err) {
+        console.warn("Failed to copy profile image to frontend:", err.message);
+      }
     }
 
     const [customer, created] = await Customer.findOrCreate({

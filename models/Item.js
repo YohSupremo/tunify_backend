@@ -43,10 +43,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 0,
       },
-      image_path: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
+
       deleted_at: {
         type: DataTypes.DATE,
         allowNull: true,

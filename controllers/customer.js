@@ -146,6 +146,16 @@ exports.updateCustomer = async (req, res) => {
       userUpdates.role = role;
     }
 
+    // Hash and update password if provided
+    const { password } = req.body;
+    if (password && password.trim() !== '') {
+      if (password.trim().length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters long." });
+      }
+      const hashedPassword = await bcrypt.hash(password.trim(), 10);
+      userUpdates.password_hash = hashedPassword;
+    }
+
     if (Object.keys(userUpdates).length > 0) {
       await user.update(userUpdates);
     }
@@ -155,7 +165,18 @@ exports.updateCustomer = async (req, res) => {
     if (customer) {
       let imagePath = customer.profile_image_path;
       if (req.file) {
-        imagePath = req.file.path.replace(/\\/g, "/");
+        imagePath = "images/" + req.file.filename;
+        const path = require("path");
+        const fs = require("fs");
+        const frontendDir = path.join(__dirname, "..", "..", "tunify", "images");
+        try {
+          if (!fs.existsSync(frontendDir)) {
+            fs.mkdirSync(frontendDir, { recursive: true });
+          }
+          fs.copyFileSync(req.file.path, path.join(frontendDir, req.file.filename));
+        } catch (err) {
+          console.warn("Failed to copy profile image to frontend:", err.message);
+        }
       }
       await customer.update({
         first_name: first_name !== undefined ? first_name.trim() : customer.first_name,
@@ -222,5 +243,67 @@ exports.reactivateCustomer = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to reactivate customer" });
+  }
+};
+
+// ─── 6. CREATE CUSTOMER (admin can create new user + customer profile) ───────
+exports.createCustomer = async (req, res) => {
+  try {
+    if (!enforceAdmin(req, res)) return;
+
+    const { email, password, first_name, last_name, phone, role } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      email: email.trim(),
+      password_hash: hashedPassword,
+      role: role || "customer"
+    });
+
+    let imagePath = null;
+    if (req.file) {
+      imagePath = "images/" + req.file.filename;
+      const path = require("path");
+      const fs = require("fs");
+      const frontendDir = path.join(__dirname, "..", "..", "tunify", "images");
+      try {
+        if (!fs.existsSync(frontendDir)) {
+          fs.mkdirSync(frontendDir, { recursive: true });
+        }
+        fs.copyFileSync(req.file.path, path.join(frontendDir, req.file.filename));
+      } catch (err) {
+        console.warn("Failed to copy profile image to frontend:", err.message);
+      }
+    }
+
+    const customer = await Customer.create({
+      user_id: user.id,
+      first_name: first_name ? first_name.trim() : "",
+      last_name: last_name ? last_name.trim() : "",
+      phone: phone ? phone.trim() : "",
+      profile_image_path: imagePath
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Customer created successfully!",
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role
+      },
+      customer
+    });
+  } catch (error) {
+    console.error("Failed to create customer:", error);
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+    res.status(500).json({ error: "Failed to create customer" });
   }
 };
