@@ -142,24 +142,35 @@ CREATE TABLE settings (
   PRIMARY KEY (id)
 );
 
+-- Table 7b: order_statuses
+CREATE TABLE order_statuses (
+  id          INT          NOT NULL AUTO_INCREMENT,
+  status_name VARCHAR(50)  NOT NULL UNIQUE,
+  PRIMARY KEY (id)
+);
+
 -- Table 8: orderinfo
 CREATE TABLE orderinfo (
-  id               INT            NOT NULL AUTO_INCREMENT,
-  user_id          INT            NOT NULL,
-  address_id       INT            NOT NULL,
-  shipping_street   VARCHAR(255)  NOT NULL,
-  shipping_city     VARCHAR(100)  NOT NULL,
-  shipping_province VARCHAR(100)  NOT NULL,
-  shipping_zip      VARCHAR(20)   NOT NULL,
-  shipping_fee     DECIMAL(10, 2) NOT NULL DEFAULT 100.00,
-  date_placed      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  date_shipped     TIMESTAMP      NULL DEFAULT NULL,
+  id                INT            NOT NULL AUTO_INCREMENT,
+  user_id           INT            NOT NULL,
+  address_id        INT            NOT NULL,
+  status_id         INT            NOT NULL DEFAULT 1,
+  shipping_street   VARCHAR(255)   NOT NULL,
+  shipping_city     VARCHAR(100)   NOT NULL,
+  shipping_province VARCHAR(100)   NOT NULL,
+  shipping_zip      VARCHAR(20)    NOT NULL,
+  shipping_fee      DECIMAL(10, 2) NOT NULL DEFAULT 100.00,
+  date_placed       TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_shipped      TIMESTAMP      NULL DEFAULT NULL,
   PRIMARY KEY (id),
   CONSTRAINT fk_orderinfo_user
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_orderinfo_address
     FOREIGN KEY (address_id) REFERENCES customer_addresses (id)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_orderinfo_status
+    FOREIGN KEY (status_id) REFERENCES order_statuses (id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -233,6 +244,14 @@ VALUES (1, 1, 'Home', '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City'
 -- Seed global settings (single row of store-wide config)
 INSERT INTO settings (id, low_stock_threshold, default_shipping_fee, currency, tax_rate, store_name, store_contact_email, store_contact_phone)
 VALUES (1, 5, 100.00, 'PHP', 0.12, 'Tunify', 'support@tunify.com', '+63 912 000 0000');
+
+-- Seed Order Statuses
+INSERT INTO order_statuses (id, status_name) VALUES
+(1, 'Pending'),
+(2, 'Processing'),
+(3, 'Shipped'),
+(4, 'Delivered'),
+(5, 'Cancelled');
 
 -- Seed Suppliers
 INSERT INTO supplier (id, name, contact_name, email, phone, address_line) VALUES 
@@ -321,10 +340,10 @@ INSERT INTO item_images (item_id, image_path, is_primary, sort_order) VALUES
 (6, 'images/nord_stage_2.png',   FALSE, 2);
 
 -- Seed the 3 default orders into orderinfo and orderline
-INSERT INTO orderinfo (id, user_id, address_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed, date_shipped) VALUES
-(2401, 1, 1, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-02 10:00:00', '2024-11-02 15:00:00'),
-(2402, 1, 1, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-18 10:00:00', '2024-11-19 10:00:00'),
-(2403, 1, 1, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-12-05 10:00:00', NULL);
+INSERT INTO orderinfo (id, user_id, address_id, status_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed, date_shipped) VALUES
+(2401, 1, 1, 3, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-02 10:00:00', '2024-11-02 15:00:00'),
+(2402, 1, 1, 3, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-18 10:00:00', '2024-11-19 10:00:00'),
+(2403, 1, 1, 2, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-12-05 10:00:00', NULL);
 
 INSERT INTO orderline (orderinfo_id, item_id, quantity, sell_price) VALUES
 (2401, 1, 1, 32500.00),
