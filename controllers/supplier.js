@@ -18,7 +18,7 @@ exports.getSuppliers = async (req, res) => {
 // 2. CREATE
 exports.createSupplier = async (req, res) => {
   try {
-    const { name, contact_name, email, phone, address_line } = req.body;
+    const { name, contact_name, email, phone, address_line, productIds } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Supplier name is required" });
@@ -31,6 +31,14 @@ exports.createSupplier = async (req, res) => {
       phone: phone ? phone.trim() : null,
       address_line: address_line ? address_line.trim() : null
     });
+
+    // Link products to the new supplier
+    if (Array.isArray(productIds) && productIds.length > 0) {
+      await Item.update(
+        { supplier_id: supplier.id },
+        { where: { id: { [db.Sequelize.Op.in]: productIds } } }
+      );
+    }
 
     res.status(201).json({ success: true, message: "Supplier added!", supplier });
   } catch (error) {
@@ -46,7 +54,7 @@ exports.createSupplier = async (req, res) => {
 exports.updateSupplier = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, contact_name, email, phone, address_line } = req.body;
+    const { name, contact_name, email, phone, address_line, productIds } = req.body;
 
     const supplier = await Supplier.findOne({
       where: { id, deleted_at: null }
@@ -63,6 +71,28 @@ exports.updateSupplier = async (req, res) => {
       phone: phone !== undefined ? phone.trim() : supplier.phone,
       address_line: address_line !== undefined ? address_line.trim() : supplier.address_line
     });
+
+    // Re-associate products
+    if (Array.isArray(productIds)) {
+      if (productIds.length > 0) {
+        // Set supplier_id to NULL for unchecked products formerly supplied by this supplier
+        await Item.update(
+          { supplier_id: null }, 
+          { where: { supplier_id: supplier.id, id: { [db.Sequelize.Op.notIn]: productIds } } }
+        );
+        // Link the checked products
+        await Item.update(
+          { supplier_id: supplier.id },
+          { where: { id: { [db.Sequelize.Op.in]: productIds } } }
+        );
+      } else {
+        // Revert all products from this supplier to NULL
+        await Item.update(
+          { supplier_id: null },
+          { where: { supplier_id: supplier.id } }
+        );
+      }
+    }
 
     res.status(200).json({ success: true, message: "Supplier updated!", supplier });
   } catch (error) {

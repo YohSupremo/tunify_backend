@@ -67,6 +67,7 @@ exports.getItems = async (req, res) => {
         name: item.name,
         brand_id: item.brand_id,
         category_id: item.category_id,
+        supplier_id: item.supplier_id,
         brand: item.Brand ? item.Brand.name : "",
         category: item.Category ? item.Category.name : "",
         price: Number(item.sell_price),
@@ -116,7 +117,7 @@ exports.createItem = async (req, res) => {
     const item = await Item.create({
       brand_id: brand.id,
       category_id: category.id,
-      supplier_id: 1, // Default supplier ID
+      supplier_id: null,
       name: name.trim(),
       description: desc ? desc.trim() : null,
       cost_price: finalCostPrice,

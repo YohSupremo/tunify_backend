@@ -19,8 +19,8 @@ module.exports = (sequelize, DataTypes) => {
       },
       supplier_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 1
+        allowNull: true,
+        defaultValue: null
       },
       name: {
         type: DataTypes.STRING(150),

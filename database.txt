@@ -95,7 +95,7 @@ CREATE TABLE item (
   id          INT            NOT NULL AUTO_INCREMENT,
   brand_id    INT            NOT NULL,
   category_id INT            NOT NULL,
-  supplier_id INT            NOT NULL,
+  supplier_id INT            NULL,
   name        VARCHAR(150)   NOT NULL,
   description TEXT           NULL,
   cost_price  DECIMAL(10, 2) NOT NULL,
@@ -220,7 +220,7 @@ CREATE TABLE payments (
 
 -- Seed Admin User (Username: admin@tunify.com, Password: password123 hashed via bcrypt)
 INSERT INTO users (id, email, password_hash, role) 
-VALUES (1, 'admin@tunify.com', '$2b$10$NtkwMo/JUVxNnEsd0twKdew/n7RNPZwrXxGbjyIsPoHsSXOFz2kjC', 'admin');
+VALUES (1, 'admin@tunify.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'admin');
 
 -- Seed Customer details for Admin user
 INSERT INTO customer (id, user_id, first_name, last_name, phone) 

@@ -18,23 +18,49 @@ exports.getBrands = async (req, res) => {
 // 2. CREATE
 exports.createBrand = async (req, res) => {
   try {
-    const { name, description, productIds } = req.body; // Add productIds here
+    const { name, description, productIds } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: "Brand name is required" });
     }
 
+    let logoPath = null;
+    if (req.file) {
+      logoPath = "images/" + req.file.filename;
+      const fs = require("fs");
+      const path = require("path");
+      const frontendDir = path.join(__dirname, "..", "..", "tunify", "images");
+      try {
+        if (!fs.existsSync(frontendDir)) {
+          fs.mkdirSync(frontendDir, { recursive: true });
+        }
+        fs.copyFileSync(req.file.path, path.join(frontendDir, req.file.filename));
+      } catch (err) {
+        console.warn("Failed to copy brand logo to frontend:", err.message);
+      }
+    }
+
     // 1. Create the brand
     const brand = await Brand.create({ 
       name: name.trim(),
-      description: description ? description.trim() : null
+      description: description ? description.trim() : null,
+      logo_path: logoPath
     });
 
+    let productIdsParsed = [];
+    if (productIds) {
+      try {
+        productIdsParsed = JSON.parse(productIds);
+      } catch (e) {
+        productIdsParsed = productIds;
+      }
+    }
+
     // 2. If products were checked, assign them to the new brand ID
-    if (Array.isArray(productIds) && productIds.length > 0) {
+    if (Array.isArray(productIdsParsed) && productIdsParsed.length > 0) {
       await Item.update(
         { brand_id: brand.id },
-        { where: { id: { [db.Sequelize.Op.in]: productIds } } }
+        { where: { id: { [db.Sequelize.Op.in]: productIdsParsed } } }
       );
     }
 
@@ -65,25 +91,53 @@ exports.updateBrand = async (req, res) => {
       return res.status(404).json({ error: "Brand not found" });
     }
 
+    let logoPath = brand.logo_path;
+    if (req.file) {
+      logoPath = "images/" + req.file.filename;
+      const fs = require("fs");
+      const path = require("path");
+      const frontendDir = path.join(__dirname, "..", "..", "tunify", "images");
+      try {
+        if (!fs.existsSync(frontendDir)) {
+          fs.mkdirSync(frontendDir, { recursive: true });
+        }
+        fs.copyFileSync(req.file.path, path.join(frontendDir, req.file.filename));
+      } catch (err) {
+        console.warn("Failed to copy brand logo to frontend:", err.message);
+      }
+    } else if (req.body.logo_path === '') {
+      logoPath = null;
+    }
+
     // A. Update brand details
     await brand.update({ 
       name: newName.trim(),
-      description: description !== undefined ? description.trim() : brand.description
+      description: description !== undefined ? description.trim() : brand.description,
+      logo_path: logoPath
     });
 
+    let productIdsParsed = [];
+    if (productIds) {
+      try {
+        productIdsParsed = JSON.parse(productIds);
+      } catch (e) {
+        productIdsParsed = productIds;
+      }
+    }
+
     // B. Re-associate products if productIds array was sent
-    if (Array.isArray(productIds)) {
-      if (productIds.length > 0) {
+    if (Array.isArray(productIdsParsed)) {
+      if (productIdsParsed.length > 0) {
         // 1. Revert items that were in this brand but are now unchecked (set brand_id to default 1)
         await Item.update(
           { brand_id: 1 }, 
-          { where: { brand_id: brand.id, id: { [db.Sequelize.Op.notIn]: productIds } } }
+          { where: { brand_id: brand.id, id: { [db.Sequelize.Op.notIn]: productIdsParsed } } }
         );
 
         // 2. Set brand_id to this brand's ID for all checked items
         await Item.update(
           { brand_id: brand.id },
-          { where: { id: { [db.Sequelize.Op.in]: productIds } } }
+          { where: { id: { [db.Sequelize.Op.in]: productIdsParsed } } }
         );
       } else {
         // Revert all items that were in this brand to default 1

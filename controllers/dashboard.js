@@ -17,7 +17,19 @@ exports.addressChart = async (req, res) => {
 exports.categoryChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      "SELECT c.name as category, COALESCE(SUM(ol.quantity), 0) as total FROM category c LEFT JOIN item i ON c.id = i.category_id LEFT JOIN orderline ol ON i.id = ol.item_id GROUP BY c.name",
+      `SELECT 
+         c.name as category, 
+         COALESCE(SUM(CASE 
+           WHEN oi.status_id IS NOT NULL AND oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           THEN ol.quantity 
+           ELSE 0 
+         END), 0) as total 
+       FROM category c 
+       LEFT JOIN item i ON c.id = i.category_id 
+       LEFT JOIN orderline ol ON i.id = ol.item_id 
+       LEFT JOIN orderinfo oi ON ol.orderinfo_id = oi.id
+       LEFT JOIN payments p ON oi.id = p.orderinfo_id
+       GROUP BY c.name`,
       { type: sequelize.QueryTypes.SELECT }
     );
     const totalSold = rows.reduce((sum, r) => sum + parseInt(r.total || 0), 0);
@@ -39,7 +51,18 @@ exports.categoryChart = async (req, res) => {
 exports.salesChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      "SELECT monthname(oi.date_placed) as month, sum(ol.quantity * ol.sell_price) as total FROM orderinfo oi INNER JOIN orderline ol ON oi.id = ol.orderinfo_id GROUP BY month(oi.date_placed)",
+      `SELECT 
+         MONTHNAME(oi.date_placed) as month, 
+         SUM(CASE 
+           WHEN oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           THEN ol.quantity * ol.sell_price 
+           ELSE 0 
+         END) as total 
+       FROM orderinfo oi 
+       INNER JOIN orderline ol ON oi.id = ol.orderinfo_id
+       LEFT JOIN payments p ON oi.id = p.orderinfo_id
+       GROUP BY MONTH(oi.date_placed), MONTHNAME(oi.date_placed)
+       ORDER BY MONTH(oi.date_placed)`,
       { type: sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
@@ -52,7 +75,18 @@ exports.salesChart = async (req, res) => {
 exports.itemsChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
-      "SELECT i.name as items, sum(ol.quantity) as total FROM item i INNER JOIN orderline ol ON i.id = ol.item_id GROUP BY i.name",
+      `SELECT 
+         i.name as items, 
+         SUM(CASE 
+           WHEN oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           THEN ol.quantity 
+           ELSE 0 
+         END) as total 
+       FROM item i 
+       INNER JOIN orderline ol ON i.id = ol.item_id 
+       INNER JOIN orderinfo oi ON ol.orderinfo_id = oi.id
+       LEFT JOIN payments p ON oi.id = p.orderinfo_id
+       GROUP BY i.name`,
       { type: sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
@@ -65,7 +99,16 @@ exports.itemsChart = async (req, res) => {
 exports.dashboardStats = async (req, res) => {
   try {
     const [revOrderRes] = await sequelize.query(
-      "SELECT COALESCE(SUM(ol.quantity * ol.sell_price), 0) as total_revenue, COUNT(DISTINCT oi.id) as order_count FROM orderinfo oi LEFT JOIN orderline ol ON oi.id = ol.orderinfo_id",
+      `SELECT 
+         COALESCE(SUM(CASE 
+           WHEN oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           THEN ol.quantity * ol.sell_price 
+           ELSE 0 
+         END), 0) as total_revenue, 
+         COUNT(DISTINCT oi.id) as order_count 
+       FROM orderinfo oi 
+       LEFT JOIN orderline ol ON oi.id = ol.orderinfo_id
+       LEFT JOIN payments p ON oi.id = p.orderinfo_id`,
       { type: sequelize.QueryTypes.SELECT }
     );
     
