@@ -61,7 +61,7 @@ exports.getCustomers = async (req, res) => {
         ORDER BY u.id ASC`,
       {
         replacements,
-        type: sequelize.QueryTypes.SELECT
+        type: db.Sequelize.QueryTypes.SELECT
       }
     );
     res.status(200).json(rows);
@@ -94,7 +94,7 @@ exports.getCustomerById = async (req, res) => {
         LEFT JOIN customer c ON c.user_id = u.id
         WHERE u.id = ?
         LIMIT 1`,
-      { replacements: [id], type: sequelize.QueryTypes.SELECT }
+      { replacements: [id], type: db.Sequelize.QueryTypes.SELECT }
     );
 
     if (!customer) {
@@ -106,7 +106,7 @@ exports.getCustomerById = async (req, res) => {
         FROM customer_addresses
         WHERE user_id = ? AND deleted_at IS NULL
         ORDER BY is_default DESC, id DESC`,
-      { replacements: [id], type: sequelize.QueryTypes.SELECT }
+      { replacements: [id], type: db.Sequelize.QueryTypes.SELECT }
     );
 
     res.status(200).json({ customer, addresses });

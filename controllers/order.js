@@ -32,7 +32,7 @@ exports.getOrders = async (req, res) => {
 
     const orders = await db.sequelize.query(query, {
       replacements,
-      type: db.sequelize.QueryTypes.SELECT
+      type: db.Sequelize.QueryTypes.SELECT
     });
 
     const formatted = orders.map(o => ({
@@ -54,34 +54,54 @@ exports.getOrders = async (req, res) => {
 
 // 2. PLACE AN ORDER
 exports.placeOrder = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const { cart } = req.body;
+    const { cart, payment_method, address_id } = req.body;
     if (!cart || !cart.length) {
+      await transaction.rollback();
       return res.status(400).json({ error: "Cart is empty" });
     }
 
-    // Get user's shipping address (default first, or fallback to most recent)
-    const [shippingAddress] = await db.sequelize.query(
-      "SELECT id, street, city, province, zip_code FROM customer_addresses WHERE user_id = :userId AND is_default = 1 AND deleted_at IS NULL LIMIT 1",
-      {
-        replacements: { userId: req.body.user.id },
-        type: db.sequelize.QueryTypes.SELECT
-      }
-    );
+    let address = null;
+    if (address_id) {
+      const [selectedAddress] = await db.sequelize.query(
+        "SELECT id, street, city, province, zip_code FROM customer_addresses WHERE id = :addressId AND user_id = :userId AND deleted_at IS NULL LIMIT 1",
+        {
+          replacements: { addressId: address_id, userId: req.body.user.id },
+          type: db.Sequelize.QueryTypes.SELECT,
+          transaction
+        }
+      );
+      address = selectedAddress;
+    }
 
-    let address = shippingAddress;
+    if (!address) {
+      // Get user's shipping address (default first, or fallback to most recent)
+      const [shippingAddress] = await db.sequelize.query(
+        "SELECT id, street, city, province, zip_code FROM customer_addresses WHERE user_id = :userId AND is_default = 1 AND deleted_at IS NULL LIMIT 1",
+        {
+          replacements: { userId: req.body.user.id },
+          type: db.Sequelize.QueryTypes.SELECT,
+          transaction
+        }
+      );
+      address = shippingAddress;
+    }
+
     if (!address) {
       const [fallbackAddress] = await db.sequelize.query(
         "SELECT id, street, city, province, zip_code FROM customer_addresses WHERE user_id = :userId AND deleted_at IS NULL ORDER BY id DESC LIMIT 1",
         {
           replacements: { userId: req.body.user.id },
-          type: db.sequelize.QueryTypes.SELECT
+          type: db.Sequelize.QueryTypes.SELECT,
+          transaction
         }
       );
       address = fallbackAddress;
     }
 
     if (!address) {
+      await transaction.rollback();
       return res.status(400).json({ error: "Please add a shipping address in your profile before placing an order." });
     }
 
@@ -97,12 +117,37 @@ exports.placeOrder = async (req, res) => {
           province: address.province,
           zip: address.zip_code
         },
-        type: db.sequelize.QueryTypes.INSERT
+        type: db.Sequelize.QueryTypes.INSERT,
+        transaction
       }
     );
 
     // Insert order lines and decrement stock
     for (const item of cart) {
+      // Validate stock levels
+      const [itemInDb] = await db.sequelize.query(
+        "SELECT id, name, quantity, sell_price FROM item WHERE id = :itemId FOR UPDATE",
+        {
+          replacements: { itemId: item.item_id },
+          type: db.Sequelize.QueryTypes.SELECT,
+          transaction
+        }
+      );
+
+      if (!itemInDb) {
+        const err = new Error(`Item with ID ${item.item_id} not found.`);
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (itemInDb.quantity < item.quantity) {
+        const err = new Error(`Insufficient stock for "${itemInDb.name}". Only ${itemInDb.quantity} left in stock.`);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const sellPrice = itemInDb.sell_price;
+
       await db.sequelize.query(
         "INSERT INTO orderline (orderinfo_id, item_id, quantity, sell_price) VALUES (:orderinfoId, :itemId, :quantity, :sellPrice)",
         {
@@ -110,21 +155,23 @@ exports.placeOrder = async (req, res) => {
             orderinfoId: orderId,
             itemId: item.item_id,
             quantity: item.quantity,
-            sellPrice: item.price
+            sellPrice: sellPrice
           },
-          type: db.sequelize.QueryTypes.INSERT
+          type: db.Sequelize.QueryTypes.INSERT,
+          transaction
         }
       );
 
       // Decrement stock quantity
       await db.sequelize.query(
-        "UPDATE item SET quantity = GREATEST(quantity - :quantity, 0) WHERE id = :itemId",
+        "UPDATE item SET quantity = quantity - :quantity WHERE id = :itemId",
         {
           replacements: {
             quantity: item.quantity,
             itemId: item.item_id
           },
-          type: db.sequelize.QueryTypes.UPDATE
+          type: db.Sequelize.QueryTypes.UPDATE,
+          transaction
         }
       );
     }
@@ -132,20 +179,59 @@ exports.placeOrder = async (req, res) => {
     // Calculate total and insert payment record
     let orderSubtotal = 0;
     for (const item of cart) {
-      orderSubtotal += parseFloat(item.price) * parseInt(item.quantity);
+      const [itemInDb] = await db.sequelize.query(
+        "SELECT sell_price FROM item WHERE id = :itemId",
+        {
+          replacements: { itemId: item.item_id },
+          type: db.Sequelize.QueryTypes.SELECT,
+          transaction
+        }
+      );
+      const price = itemInDb ? itemInDb.sell_price : item.price;
+      orderSubtotal += parseFloat(price) * parseInt(item.quantity);
     }
     const amountPaid = orderSubtotal + 100.00; // subtotal + shipping fee
 
+    let method = 'cod';
+    if (payment_method && ['cod', 'gcash', 'card', 'bank_transfer'].includes(payment_method)) {
+      method = payment_method;
+    }
+
+    const paymentStatus = method === 'cod' ? 'pending' : 'paid';
+    const paidAt = method === 'cod' ? null : new Date();
+    
+    let transactionRef = null;
+    if (method !== 'cod') {
+      let prefix = '';
+      if (method === 'gcash') prefix = 'GC';
+      else if (method === 'card') prefix = 'CARD';
+      else if (method === 'bank_transfer') prefix = 'BT';
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const date = String(now.getDate()).padStart(2, '0');
+      const dateStr = `${year}${month}${date}`;
+      transactionRef = `${prefix}-${dateStr}-${String(orderId).padStart(3, '0')}`;
+    }
+
     await db.sequelize.query(
-      "INSERT INTO payments (orderinfo_id, payment_method, amount_paid, payment_status, paid_at) VALUES (:orderinfoId, 'cod', :amountPaid, 'pending', NULL)",
+      "INSERT INTO payments (orderinfo_id, payment_method, amount_paid, payment_status, transaction_ref, paid_at) VALUES (:orderinfoId, :method, :amountPaid, :paymentStatus, :transactionRef, :paidAt)",
       {
         replacements: {
           orderinfoId: orderId,
-          amountPaid: amountPaid
+          method,
+          amountPaid: amountPaid,
+          paymentStatus,
+          transactionRef,
+          paidAt
         },
-        type: db.sequelize.QueryTypes.INSERT
+        type: db.Sequelize.QueryTypes.INSERT,
+        transaction
       }
     );
+
+    await transaction.commit();
 
     res.status(201).json({
       success: true,
@@ -153,18 +239,22 @@ exports.placeOrder = async (req, res) => {
       orderId: 'TN-' + String(orderId).padStart(4, '0')
     });
   } catch (error) {
+    await transaction.rollback();
     console.error("Failed to place order:", error);
-    res.status(500).json({ error: "Failed to place order" });
+    const status = error.statusCode || 500;
+    res.status(status).json({ error: error.message || "Failed to place order" });
   }
 };
 
 // 3. UPDATE ORDER STATUS
 exports.updateOrderStatus = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
     const { id } = req.params;
     const { status } = req.body; // status name (string) or status ID (number)
 
     if (!id || status === undefined) {
+      await transaction.rollback();
       return res.status(400).json({ error: "Order ID and status are required" });
     }
 
@@ -177,7 +267,7 @@ exports.updateOrderStatus = async (req, res) => {
     if (typeof status === 'number' || !isNaN(status)) {
       const [resolved] = await db.sequelize.query(
         "SELECT id, status_name FROM order_statuses WHERE id = :id",
-        { replacements: { id: Number(status) }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { id: Number(status) }, type: db.Sequelize.QueryTypes.SELECT, transaction }
       );
       if (resolved) {
         statusId = resolved.id;
@@ -186,7 +276,7 @@ exports.updateOrderStatus = async (req, res) => {
     } else {
       const [resolved] = await db.sequelize.query(
         "SELECT id, status_name FROM order_statuses WHERE LOWER(status_name) = LOWER(:name)",
-        { replacements: { name: String(status).trim() }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { name: String(status).trim() }, type: db.Sequelize.QueryTypes.SELECT, transaction }
       );
       if (resolved) {
         statusId = resolved.id;
@@ -195,17 +285,25 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     if (!statusId) {
+      await transaction.rollback();
       return res.status(400).json({ error: `Invalid status: ${status}` });
     }
 
-    // Get current order state to check for stock restoration
+    // Get current order state to check for stock restoration & ownership validation
     const [oldOrder] = await db.sequelize.query(
-      "SELECT status_id FROM orderinfo WHERE id = :id",
-      { replacements: { id: rawId }, type: db.sequelize.QueryTypes.SELECT }
+      "SELECT status_id, user_id FROM orderinfo WHERE id = :id",
+      { replacements: { id: rawId }, type: db.Sequelize.QueryTypes.SELECT, transaction }
     );
 
     if (!oldOrder) {
+      await transaction.rollback();
       return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Security check: Only admin or the order owner can update/cancel the order
+    if (req.body.user.role !== 'admin' && oldOrder.user_id !== req.body.user.id) {
+      await transaction.rollback();
+      return res.status(403).json({ error: "Access denied. You can only update your own orders." });
     }
 
     const oldStatusId = oldOrder.status_id;
@@ -215,24 +313,24 @@ exports.updateOrderStatus = async (req, res) => {
       // Transitioning TO Cancelled: Restore stock
       const lines = await db.sequelize.query(
         "SELECT item_id, quantity FROM orderline WHERE orderinfo_id = :id",
-        { replacements: { id: rawId }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { id: rawId }, type: db.Sequelize.QueryTypes.SELECT, transaction }
       );
       for (const line of lines) {
         await db.sequelize.query(
           "UPDATE item SET quantity = quantity + :qty WHERE id = :itemId",
-          { replacements: { qty: line.quantity, itemId: line.item_id }, type: db.sequelize.QueryTypes.UPDATE }
+          { replacements: { qty: line.quantity, itemId: line.item_id }, type: db.Sequelize.QueryTypes.UPDATE, transaction }
         );
       }
     } else if (statusId !== 5 && oldStatusId === 5) {
       // Transitioning FROM Cancelled: Decrement stock
       const lines = await db.sequelize.query(
         "SELECT item_id, quantity FROM orderline WHERE orderinfo_id = :id",
-        { replacements: { id: rawId }, type: db.sequelize.QueryTypes.SELECT }
+        { replacements: { id: rawId }, type: db.Sequelize.QueryTypes.SELECT, transaction }
       );
       for (const line of lines) {
         await db.sequelize.query(
           "UPDATE item SET quantity = GREATEST(quantity - :qty, 0) WHERE id = :itemId",
-          { replacements: { qty: line.quantity, itemId: line.item_id }, type: db.sequelize.QueryTypes.UPDATE }
+          { replacements: { qty: line.quantity, itemId: line.item_id }, type: db.Sequelize.QueryTypes.UPDATE, transaction }
         );
       }
     }
@@ -241,8 +339,39 @@ exports.updateOrderStatus = async (req, res) => {
     if (statusName === 'Delivered') {
       await db.sequelize.query(
         "UPDATE payments SET payment_status = 'paid', paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP) WHERE orderinfo_id = :orderId AND payment_method = 'cod' AND payment_status = 'pending'",
-        { replacements: { orderId: rawId }, type: db.sequelize.QueryTypes.UPDATE }
+        { replacements: { orderId: rawId }, type: db.Sequelize.QueryTypes.UPDATE, transaction }
       );
+    }
+
+    // Auto-mark non-COD payments as paid when processed/shipped/delivered
+    if (statusName === 'Processing' || statusName === 'Shipped' || statusName === 'Delivered') {
+      const [payment] = await db.sequelize.query(
+        "SELECT payment_method, transaction_ref FROM payments WHERE orderinfo_id = :orderId",
+        { replacements: { orderId: rawId }, type: db.Sequelize.QueryTypes.SELECT, transaction }
+      );
+      if (payment && payment.payment_method !== 'cod' && !payment.transaction_ref) {
+        let prefix = '';
+        if (payment.payment_method === 'gcash') prefix = 'GC';
+        else if (payment.payment_method === 'card') prefix = 'CARD';
+        else if (payment.payment_method === 'bank_transfer') prefix = 'BT';
+
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const date = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${year}${month}${date}`;
+        const ref = `${prefix}-${dateStr}-${String(rawId).padStart(3, '0')}`;
+
+        await db.sequelize.query(
+          "UPDATE payments SET payment_status = 'paid', transaction_ref = :ref, paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP) WHERE orderinfo_id = :orderId AND payment_status = 'pending'",
+          { replacements: { orderId: rawId, ref }, type: db.Sequelize.QueryTypes.UPDATE, transaction }
+        );
+      } else {
+        await db.sequelize.query(
+          "UPDATE payments SET payment_status = 'paid', paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP) WHERE orderinfo_id = :orderId AND payment_method != 'cod' AND payment_status = 'pending'",
+          { replacements: { orderId: rawId }, type: db.Sequelize.QueryTypes.UPDATE, transaction }
+        );
+      }
     }
 
     // Determine date_shipped update
@@ -258,12 +387,15 @@ exports.updateOrderStatus = async (req, res) => {
       `UPDATE orderinfo SET status_id = :statusId, ${dateShippedQuery} WHERE id = :id`,
       {
         replacements: { statusId, id: rawId },
-        type: db.sequelize.QueryTypes.UPDATE
+        type: db.Sequelize.QueryTypes.UPDATE,
+        transaction
       }
     );
 
+    await transaction.commit();
     res.status(200).json({ success: true, message: `Order status updated to ${statusName}!` });
   } catch (error) {
+    await transaction.rollback();
     console.error("Failed to update order status:", error);
     res.status(500).json({ error: "Failed to update order status" });
   }
@@ -296,7 +428,8 @@ exports.getOrderDetails = async (req, res) => {
          CONCAT(c.first_name, ' ', c.last_name) as customer_name,
          c.phone as customer_phone,
          p.payment_method,
-         p.payment_status
+         p.payment_status,
+         p.transaction_ref
        FROM orderinfo oi
        JOIN users u ON oi.user_id = u.id
        JOIN customer c ON u.id = c.user_id
@@ -305,7 +438,7 @@ exports.getOrderDetails = async (req, res) => {
        WHERE oi.id = :id`,
       {
         replacements: { id: rawId },
-        type: db.sequelize.QueryTypes.SELECT
+        type: db.Sequelize.QueryTypes.SELECT
       }
     );
 
@@ -324,7 +457,7 @@ exports.getOrderDetails = async (req, res) => {
        WHERE ol.orderinfo_id = :id`,
       {
         replacements: { id: rawId },
-        type: db.sequelize.QueryTypes.SELECT
+        type: db.Sequelize.QueryTypes.SELECT
       }
     );
 

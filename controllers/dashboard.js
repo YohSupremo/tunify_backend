@@ -5,7 +5,7 @@ exports.addressChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
       "SELECT count(id) as total, CONCAT(city, ', ', province) as addressline FROM customer_addresses WHERE deleted_at IS NULL GROUP BY city, province ORDER BY total DESC",
-      { type: sequelize.QueryTypes.SELECT }
+      { type: db.Sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
   } catch (error) {
@@ -20,7 +20,7 @@ exports.categoryChart = async (req, res) => {
       `SELECT 
          c.name as category, 
          COALESCE(SUM(CASE 
-           WHEN oi.status_id IS NOT NULL AND oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           WHEN oi.status_id IS NOT NULL AND ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
            THEN ol.quantity 
            ELSE 0 
          END), 0) as total 
@@ -30,7 +30,7 @@ exports.categoryChart = async (req, res) => {
        LEFT JOIN orderinfo oi ON ol.orderinfo_id = oi.id
        LEFT JOIN payments p ON oi.id = p.orderinfo_id
        GROUP BY c.name`,
-      { type: sequelize.QueryTypes.SELECT }
+      { type: db.Sequelize.QueryTypes.SELECT }
     );
     const totalSold = rows.reduce((sum, r) => sum + parseInt(r.total || 0), 0);
     const result = rows.map(r => {
@@ -54,7 +54,7 @@ exports.salesChart = async (req, res) => {
       `SELECT 
          MONTHNAME(oi.date_placed) as month, 
          SUM(CASE 
-           WHEN oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           WHEN ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
            THEN ol.quantity * ol.sell_price 
            ELSE 0 
          END) as total 
@@ -63,7 +63,7 @@ exports.salesChart = async (req, res) => {
        LEFT JOIN payments p ON oi.id = p.orderinfo_id
        GROUP BY MONTH(oi.date_placed), MONTHNAME(oi.date_placed)
        ORDER BY MONTH(oi.date_placed)`,
-      { type: sequelize.QueryTypes.SELECT }
+      { type: db.Sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
   } catch (error) {
@@ -78,7 +78,7 @@ exports.itemsChart = async (req, res) => {
       `SELECT 
          i.name as items, 
          SUM(CASE 
-           WHEN oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           WHEN ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
            THEN ol.quantity 
            ELSE 0 
          END) as total 
@@ -87,7 +87,7 @@ exports.itemsChart = async (req, res) => {
        INNER JOIN orderinfo oi ON ol.orderinfo_id = oi.id
        LEFT JOIN payments p ON oi.id = p.orderinfo_id
        GROUP BY i.name`,
-      { type: sequelize.QueryTypes.SELECT }
+      { type: db.Sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
   } catch (error) {
@@ -101,7 +101,7 @@ exports.dashboardStats = async (req, res) => {
     const [revOrderRes] = await sequelize.query(
       `SELECT 
          COALESCE(SUM(CASE 
-           WHEN oi.status_id != 5 AND (p.payment_method != 'cod' OR oi.status_id = 4) 
+           WHEN ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
            THEN ol.quantity * ol.sell_price 
            ELSE 0 
          END), 0) as total_revenue, 
@@ -109,17 +109,17 @@ exports.dashboardStats = async (req, res) => {
        FROM orderinfo oi 
        LEFT JOIN orderline ol ON oi.id = ol.orderinfo_id
        LEFT JOIN payments p ON oi.id = p.orderinfo_id`,
-      { type: sequelize.QueryTypes.SELECT }
+      { type: db.Sequelize.QueryTypes.SELECT }
     );
     
     const [custRes] = await sequelize.query(
       "SELECT COUNT(*) as count FROM customer WHERE deleted_at IS NULL",
-      { type: sequelize.QueryTypes.SELECT }
+      { type: db.Sequelize.QueryTypes.SELECT }
     );
 
     const [lowStockRes] = await sequelize.query(
       "SELECT COUNT(*) as count FROM item WHERE quantity <= 5 AND deleted_at IS NULL",
-      { type: sequelize.QueryTypes.SELECT }
+      { type: db.Sequelize.QueryTypes.SELECT }
     );
 
     const dbRevenue = parseFloat(revOrderRes.total_revenue || 0);

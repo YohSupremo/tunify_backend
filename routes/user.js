@@ -15,6 +15,7 @@ router.get("/", userController.getUser);
 // Address endpoints
 router.get("/addresses", isAuthenticatedUser, userController.getAddresses);
 router.post("/addresses", isAuthenticatedUser, userController.addAddress);
+router.put("/addresses/:id", isAuthenticatedUser, userController.updateAddress);
 router.delete("/addresses/:id", isAuthenticatedUser, userController.deleteAddress);
 router.put("/addresses/:id/default", isAuthenticatedUser, userController.setDefaultAddress);
 
