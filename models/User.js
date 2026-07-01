@@ -21,6 +21,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: "customer",
       },
+      token: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+      },
       deleted_at: {
         type: DataTypes.DATE,
         allowNull: true,

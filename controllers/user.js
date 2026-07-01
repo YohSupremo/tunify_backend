@@ -87,6 +87,9 @@ exports.loginUser = async (req, res) => {
       expiresIn: process.env.JWT_EXPIRES_IN || "1h"
     });
 
+    // Save token to database
+    await user.update({ token });
+
     const customer = await Customer.findOne({ where: { user_id: user.id } });
 
     res.status(200).json({
@@ -357,7 +360,7 @@ exports.deactivateUser = async (req, res) => {
     }
 
     const timestamp = new Date();
-    await user.update({ deleted_at: timestamp });
+    await user.update({ deleted_at: timestamp, token: null });
 
     res.status(200).json({
       success: true,
