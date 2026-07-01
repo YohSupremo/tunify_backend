@@ -12,7 +12,6 @@ exports.getSettings = async (req, res) => {
         id: 1,
         low_stock_threshold: 5,
         default_shipping_fee: 100.00,
-        tax_rate: 0.12,
         store_name: "Tunify",
         store_contact_email: "support@tunify.com",
         store_contact_phone: "+63 912 000 0000"
@@ -32,7 +31,6 @@ exports.updateSettings = async (req, res) => {
     const {
       low_stock_threshold,
       default_shipping_fee,
-      tax_rate,
       store_name,
       store_contact_email,
       store_contact_phone
@@ -62,11 +60,6 @@ exports.updateSettings = async (req, res) => {
       return res.status(400).json({ error: "Default shipping fee must be a valid positive number" });
     }
 
-    const taxRateVal = parseFloat(tax_rate);
-    if (isNaN(taxRateVal) || taxRateVal < 0 || taxRateVal > 1) {
-      return res.status(400).json({ error: "Tax rate must be a decimal between 0 and 1 (e.g. 0.12 for 12%)" });
-    }
-
 
 
     // Find or create settings row to update
@@ -79,7 +72,6 @@ exports.updateSettings = async (req, res) => {
     await settings.update({
       low_stock_threshold: thresholdVal,
       default_shipping_fee: shippingFeeVal,
-      tax_rate: taxRateVal,
       store_name: store_name.trim(),
       store_contact_email: store_contact_email.trim(),
       store_contact_phone: store_contact_phone.trim()

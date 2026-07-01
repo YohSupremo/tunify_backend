@@ -3,7 +3,7 @@ const sendEmail = require('../utils/sendEmail');
 const generateReceiptPdf = require('../utils/generateReceiptPdf');
 
 // ── Receipt HTML builder (shared by placeOrder + updateOrderStatus) ──────────
-function buildReceiptHtml({ orderId, customerName, customerEmail, customerPhone, shippingStreet, shippingCity, shippingProvince, shippingZip, datePlaced, dateShipped, statusName, paymentMethod, paymentStatus, transactionRef, items, subtotal, shippingFee, grandTotal, headerTitle, headerSubtitle, storeName }) {
+function buildReceiptHtml({ orderId, customerName, customerEmail, customerPhone, shippingStreet, shippingCity, shippingProvince, shippingZip, datePlaced, dateShipped, statusName, paymentMethod, paymentStatus, transactionRef, items, subtotal, shippingFee, grandTotal, headerTitle, headerSubtitle, storeName, storeEmail = '', storePhone = '' }) {
   const paymentLabels = { cod: 'Cash on Delivery (COD)', gcash: 'GCash', card: 'Credit / Debit Card', bank_transfer: 'Bank Transfer' };
   const paymentLabel = paymentLabels[paymentMethod] || paymentMethod || 'COD';
   
@@ -156,7 +156,7 @@ function buildReceiptHtml({ orderId, customerName, customerEmail, customerPhone,
             <td style="background-color: #0A0710; border-top: 1px solid rgba(251, 113, 133, 0.1); padding: 28px 40px; text-align: center;">
               <div style="font-size: 13px; color: #CBD5E1;">
                 Questions about your order? Reply to this email or contact us at 
-                <a href="mailto:support@tunify.store" style="color: #FB7185; text-decoration: none; font-weight: 600;">support@tunify.store</a>
+                <a href="mailto:${storeEmail || 'support@tunify.com'}" style="color: #FB7185; text-decoration: none; font-weight: 600;">${storeEmail || 'support@tunify.com'}</a>${storePhone ? ` &nbsp;·&nbsp; <span style="color:#94A3B8">${storePhone}</span>` : ''}
               </div>
               <div style="font-size: 11px; color: #94A3B8; margin-top: 10px;">
                 &copy; 2026 ${storeName || 'Tunify'} Music Store. All rights reserved.
@@ -234,6 +234,13 @@ exports.placeOrder = async (req, res) => {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
+    // Fetch dynamic shipping fee setting
+    const [settings] = await db.sequelize.query(
+      "SELECT default_shipping_fee FROM settings LIMIT 1",
+      { type: db.Sequelize.QueryTypes.SELECT, transaction }
+    );
+    const shippingFee = settings ? parseFloat(settings.default_shipping_fee) : 100.00;
+
     let address = null;
     if (address_id) {
       const [selectedAddress] = await db.sequelize.query(
@@ -279,7 +286,7 @@ exports.placeOrder = async (req, res) => {
 
     // Insert into orderinfo
     const [orderId] = await db.sequelize.query(
-      "INSERT INTO orderinfo (user_id, address_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed) VALUES (:userId, :addressId, :street, :city, :province, :zip, 100.00, CURRENT_TIMESTAMP)",
+      "INSERT INTO orderinfo (user_id, address_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed) VALUES (:userId, :addressId, :street, :city, :province, :zip, :shippingFee, CURRENT_TIMESTAMP)",
       {
         replacements: {
           userId: req.body.user.id,
@@ -287,7 +294,8 @@ exports.placeOrder = async (req, res) => {
           street: address.street,
           city: address.city,
           province: address.province,
-          zip: address.zip_code
+          zip: address.zip_code,
+          shippingFee: shippingFee
         },
         type: db.Sequelize.QueryTypes.INSERT,
         transaction
@@ -362,7 +370,7 @@ exports.placeOrder = async (req, res) => {
       const price = itemInDb ? itemInDb.sell_price : item.price;
       orderSubtotal += parseFloat(price) * parseInt(item.quantity);
     }
-    const amountPaid = orderSubtotal + 100.00; // subtotal + shipping fee
+    const amountPaid = orderSubtotal + shippingFee; // subtotal + shipping fee
 
     let method = 'cod';
     if (payment_method && ['cod', 'gcash', 'card', 'bank_transfer'].includes(payment_method)) {
@@ -408,9 +416,11 @@ exports.placeOrder = async (req, res) => {
     // Send order confirmation receipt email
     const formattedOrderId = 'TN-' + String(orderId).padStart(4, '0');
     try {
-      // Fetch store settings for dynamic store name
+      // Fetch store settings for dynamic store name, email, and phone
       const storeSettings = await db.Settings.findOne();
       const storeName = storeSettings ? storeSettings.store_name : 'Tunify';
+      const storeEmail = storeSettings ? storeSettings.store_contact_email : '';
+      const storePhone = storeSettings ? storeSettings.store_contact_phone : '';
       // Fetch customer info for the email
       const [userInfo] = await db.sequelize.query(
         `SELECT u.email, CONCAT(c.first_name, ' ', c.last_name) as customer_name, c.phone
@@ -424,7 +434,8 @@ exports.placeOrder = async (req, res) => {
         { replacements: { orderId }, type: db.Sequelize.QueryTypes.SELECT }
       );
       const sub = orderSubtotal;
-      const fee = 100.00;
+      const fee = storeSettings ? parseFloat(storeSettings.default_shipping_fee) : 100.00;
+      const total = sub + fee;
       const paymentLabel = { cod: 'Cash on Delivery', gcash: 'GCash', card: 'Credit/Debit Card', bank_transfer: 'Bank Transfer' }[method] || method;
       const html = buildReceiptHtml({
         orderId: formattedOrderId,
@@ -444,10 +455,12 @@ exports.placeOrder = async (req, res) => {
         items: orderItems,
         subtotal: sub,
         shippingFee: fee,
-        grandTotal: sub + fee,
+        grandTotal: total,
         headerTitle: 'Order Confirmed!',
         headerSubtitle: `Thank you for your purchase, ${userInfo ? userInfo.customer_name.split(' ')[0] : 'Customer'}!`,
-        storeName
+        storeName,
+        storeEmail,
+        storePhone
       });
       const pdfBuffer = await generateReceiptPdf({
         orderId: formattedOrderId,
@@ -467,7 +480,7 @@ exports.placeOrder = async (req, res) => {
         items: orderItems,
         subtotal: sub,
         shippingFee: fee,
-        grandTotal: sub + fee,
+        grandTotal: total,
         storeName
       });
 
@@ -653,9 +666,11 @@ exports.updateOrderStatus = async (req, res) => {
     // Lab 7: Send rich receipt email on status update
     const orderId = 'TN-' + String(rawId).padStart(4, '0');
     try {
-      // Fetch store settings for dynamic store name
+      // Fetch store settings for dynamic store name, email, and phone
       const storeSettings = await db.Settings.findOne();
       const storeName = storeSettings ? storeSettings.store_name : 'Tunify';
+      const storeEmail = storeSettings ? storeSettings.store_contact_email : '';
+      const storePhone = storeSettings ? storeSettings.store_contact_phone : '';
       // Fetch full order details for the receipt
       const [orderDetails] = await db.sequelize.query(
         `SELECT oi.shipping_street, oi.shipping_city, oi.shipping_province, oi.shipping_zip,
@@ -675,6 +690,7 @@ exports.updateOrderStatus = async (req, res) => {
       );
       const sub = orderItems.reduce((s, it) => s + parseFloat(it.price) * parseInt(it.quantity), 0);
       const fee = parseFloat(orderDetails ? orderDetails.shipping_fee : 100);
+      const total = sub + fee;
       const html = buildReceiptHtml({
         orderId,
         customerName: orderDetails ? orderDetails.customer_name : '',
@@ -693,10 +709,12 @@ exports.updateOrderStatus = async (req, res) => {
         items: orderItems,
         subtotal: sub,
         shippingFee: fee,
-        grandTotal: sub + fee,
+        grandTotal: total,
         headerTitle: `Order Status Updated`,
         headerSubtitle: `Your order is now: ${statusName}`,
-        storeName
+        storeName,
+        storeEmail,
+        storePhone
       });
       const pdfBuffer = await generateReceiptPdf({
         orderId,
@@ -716,7 +734,7 @@ exports.updateOrderStatus = async (req, res) => {
         items: orderItems,
         subtotal: sub,
         shippingFee: fee,
-        grandTotal: sub + fee,
+        grandTotal: total,
         storeName
       });
 

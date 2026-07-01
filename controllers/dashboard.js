@@ -117,20 +117,33 @@ exports.dashboardStats = async (req, res) => {
       { type: db.Sequelize.QueryTypes.SELECT }
     );
 
-    const [lowStockRes] = await sequelize.query(
-      "SELECT COUNT(*) as count FROM item WHERE quantity <= 5 AND deleted_at IS NULL",
+    const [outOfStockRes] = await sequelize.query(
+      "SELECT COUNT(*) as count FROM item WHERE quantity = 0 AND deleted_at IS NULL",
       { type: db.Sequelize.QueryTypes.SELECT }
+    );
+
+    const [settingsRes] = await sequelize.query(
+      "SELECT low_stock_threshold FROM settings LIMIT 1",
+      { type: db.Sequelize.QueryTypes.SELECT }
+    );
+    const threshold = parseInt(settingsRes ? settingsRes.low_stock_threshold : 5) || 5;
+
+    const [lowStockRes] = await sequelize.query(
+      "SELECT COUNT(*) as count FROM item WHERE quantity > 0 AND quantity <= :threshold AND deleted_at IS NULL",
+      { replacements: { threshold }, type: db.Sequelize.QueryTypes.SELECT }
     );
 
     const dbRevenue = parseFloat(revOrderRes.total_revenue || 0);
     const dbOrders = parseInt(revOrderRes.order_count || 0);
     const dbCustomers = parseInt(custRes.count || 0);
+    const dbOutOfStock = parseInt(outOfStockRes.count || 0);
     const dbLowStock = parseInt(lowStockRes.count || 0);
 
     res.status(200).json({
       revenue: dbRevenue,
       orders: dbOrders,
       customers: dbCustomers,
+      outOfStock: dbOutOfStock,
       lowStock: dbLowStock
     });
   } catch (error) {

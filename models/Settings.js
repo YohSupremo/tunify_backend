@@ -17,11 +17,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 100.00,
       },
-      tax_rate: {
-        type: DataTypes.DECIMAL(5, 4),
-        allowNull: false,
-        defaultValue: 0.1200,
-      },
       store_name: {
         type: DataTypes.STRING(100),
         allowNull: false,
