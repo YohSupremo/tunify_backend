@@ -8,6 +8,7 @@ const Supplier = require('./Supplier');
 const ItemImage = require('./ItemImage');
 const Review = require('./Review');
 const Settings = require('./Settings');
+const RestockLog = require('./RestockLog');
 
 const db = {};
 db.Item = Item(sequelize, require('sequelize').DataTypes);
@@ -19,6 +20,7 @@ db.Supplier = Supplier(sequelize, require('sequelize').DataTypes);
 db.ItemImage = ItemImage(sequelize, require('sequelize').DataTypes);
 db.Review = Review(sequelize, require('sequelize').DataTypes);
 db.Settings = Settings(sequelize, require('sequelize').DataTypes);
+db.RestockLog = RestockLog(sequelize, require('sequelize').DataTypes);
 
 // user relationship to customer
 db.User.hasOne(db.Customer, {
@@ -60,6 +62,22 @@ db.Item.hasMany(db.ItemImage, {
 });
 db.ItemImage.belongsTo(db.Item, {
     foreignKey: 'item_id'
+});
+
+// restock logs relationships
+db.Item.hasMany(db.RestockLog, {
+    foreignKey: 'item_id',
+    as: 'restockLogs'
+});
+db.RestockLog.belongsTo(db.Item, {
+    foreignKey: 'item_id'
+});
+db.Supplier.hasMany(db.RestockLog, {
+    foreignKey: 'supplier_id',
+    as: 'restockLogs'
+});
+db.RestockLog.belongsTo(db.Supplier, {
+    foreignKey: 'supplier_id'
 });
 
 // review relationships

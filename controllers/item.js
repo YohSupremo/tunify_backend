@@ -56,12 +56,15 @@ exports.getItems = async (req, res) => {
       include: [
         { model: Brand, attributes: ["name"] },
         { model: Category, attributes: ["name"] },
-        { model: db.ItemImage, as: "images" }
+        { model: db.Supplier, attributes: ["name"] },
+        { model: db.ItemImage, as: "images" },
+        { model: db.RestockLog, as: "restockLogs", limit: 1, order: [["created_at", "DESC"]] }
       ]
     });
 
     const mappedItems = items.map(item => {
       const primaryImgObj = (item.images && item.images.find(img => img.is_primary)) || (item.images && item.images[0]);
+      const latestRestock = item.restockLogs && item.restockLogs.length > 0 ? item.restockLogs[0] : null;
       return {
         id: item.id,
         name: item.name,
@@ -70,8 +73,9 @@ exports.getItems = async (req, res) => {
         supplier_id: item.supplier_id,
         brand: item.Brand ? item.Brand.name : "",
         category: item.Category ? item.Category.name : "",
+        supplier: item.Supplier ? item.Supplier.name : "",
         price: Number(item.sell_price),
-        cost_price: Number(item.cost_price),
+        cost_price: latestRestock ? Number(latestRestock.cost_price) : 0,
         stock: item.quantity,
         image: primaryImgObj ? primaryImgObj.image_path : "",
         images: item.images ? item.images.map(img => ({
@@ -95,10 +99,10 @@ exports.getItems = async (req, res) => {
 // 2. CREATE ITEM
 exports.createItem = async (req, res) => {
   try {
-    const { name, brandName, categoryName, price, cost_price, stock, desc } = req.body;
+    const { name, brandName, categoryName, supplierName, price, stock, desc } = req.body;
 
-    if (!name || !brandName || !categoryName || price === undefined) {
-      return res.status(400).json({ error: "Name, brand, category, and price are required" });
+    if (!name || !brandName || !categoryName || !supplierName || price === undefined) {
+      return res.status(400).json({ error: "Name, brand, category, supplier, and price are required" });
     }
 
     // Look up brand ID
@@ -109,20 +113,18 @@ exports.createItem = async (req, res) => {
     const category = await Category.findOne({ where: { name: categoryName.toLowerCase(), deleted_at: null } });
     if (!category) return res.status(400).json({ error: `Category "${categoryName}" not found` });
 
-    // Use provided cost_price or auto-calculate as 60% of sell price
-    const finalCostPrice = (cost_price !== undefined && cost_price !== null && cost_price !== '')
-      ? Number(cost_price)
-      : Math.round(Number(price) * 0.6);
+    // Look up supplier ID
+    const supplier = await db.Supplier.findOne({ where: { name: supplierName, deleted_at: null } });
+    if (!supplier) return res.status(400).json({ error: `Supplier "${supplierName}" not found` });
 
     const item = await Item.create({
       brand_id: brand.id,
       category_id: category.id,
-      supplier_id: null,
+      supplier_id: supplier.id,
       name: name.trim(),
       description: desc ? desc.trim() : null,
-      cost_price: finalCostPrice,
       sell_price: Number(price),
-      quantity: stock ? Number(stock) : 0
+      quantity: 0
     });
 
     // Handle multiple uploaded files
@@ -167,7 +169,7 @@ exports.createItem = async (req, res) => {
 // 3. UPDATE ITEM
 exports.updateItem = async (req, res) => {
   try {
-    const { id, name, brandName, categoryName, price, cost_price, stock, desc } = req.body;
+    const { id, name, brandName, categoryName, supplierName, price, stock, desc } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Item ID is required" });
@@ -176,18 +178,12 @@ exports.updateItem = async (req, res) => {
     const item = await Item.findOne({ where: { id, deleted_at: null } });
     if (!item) return res.status(404).json({ error: "Item not found" });
 
-    const updateData = {};
+    let updateData = {};
 
     if (name) updateData.name = name.trim();
     if (desc !== undefined) updateData.description = desc ? desc.trim() : null;
     if (price !== undefined) {
       updateData.sell_price = Number(price);
-      // Use provided cost_price or auto-calculate
-      updateData.cost_price = (cost_price !== undefined && cost_price !== null && cost_price !== '')
-        ? Number(cost_price)
-        : Math.round(Number(price) * 0.6);
-    } else if (cost_price !== undefined && cost_price !== null && cost_price !== '') {
-      updateData.cost_price = Number(cost_price);
     }
 
     if (brandName) {
@@ -202,8 +198,10 @@ exports.updateItem = async (req, res) => {
       updateData.category_id = category.id;
     }
 
-    if (stock !== undefined) {
-      updateData.quantity = Number(stock);
+    if (supplierName) {
+      const supplier = await db.Supplier.findOne({ where: { name: supplierName, deleted_at: null } });
+      if (!supplier) return res.status(400).json({ error: `Supplier "${supplierName}" not found` });
+      updateData.supplier_id = supplier.id;
     }
 
     await item.update(updateData);

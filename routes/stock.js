@@ -6,7 +6,7 @@ const { isAuthenticatedUser } = require("../middlewares/auth");
 // Public route to view stock levels
 router.get("/stocks", stockController.getStocks);
 
-// Protected route to update stock levels (admin only via auth middleware)
-router.put("/stocks", isAuthenticatedUser, stockController.updateStock);
+// Protected route to bulk restock items
+router.post("/stocks/bulk-restock", isAuthenticatedUser, stockController.bulkRestock);
 
 module.exports = router;

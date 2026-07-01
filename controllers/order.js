@@ -328,12 +328,24 @@ exports.placeOrder = async (req, res) => {
 
       const sellPrice = itemInDb.sell_price;
 
+      // Look up latest cost price from restock logs
+      const [latestRestock] = await db.sequelize.query(
+        "SELECT cost_price FROM restock_logs WHERE item_id = :itemId ORDER BY created_at DESC LIMIT 1",
+        {
+          replacements: { itemId: item.item_id },
+          type: db.Sequelize.QueryTypes.SELECT,
+          transaction
+        }
+      );
+      const costPrice = latestRestock ? parseFloat(latestRestock.cost_price) : 0;
+
       await db.sequelize.query(
-        "INSERT INTO orderline (orderinfo_id, item_id, quantity, sell_price) VALUES (:orderinfoId, :itemId, :quantity, :sellPrice)",
+        "INSERT INTO orderline (orderinfo_id, item_id, cost_price, quantity, sell_price) VALUES (:orderinfoId, :itemId, :costPrice, :quantity, :sellPrice)",
         {
           replacements: {
             orderinfoId: orderId,
             itemId: item.item_id,
+            costPrice: costPrice,
             quantity: item.quantity,
             sellPrice: sellPrice
           },

@@ -8,16 +8,23 @@ exports.getStocks = async (req, res) => {
     const items = await Item.findAll({
       where: { deleted_at: null },
       include: [
-        { model: Category, attributes: ["name"] }
+        { model: Category, attributes: ["name"] },
+        { model: db.RestockLog, as: "restockLogs", limit: 1, order: [["created_at", "DESC"]] }
       ]
     });
 
-    const mappedStocks = items.map(i => ({
-      id: i.id,
-      name: i.name,
-      category: i.Category ? i.Category.name : "uncategorized",
-      stock: i.quantity
-    }));
+    const mappedStocks = items.map(i => {
+      const latestRestock = i.restockLogs && i.restockLogs.length > 0 ? i.restockLogs[0] : null;
+      return {
+        id: i.id,
+        name: i.name,
+        category: i.Category ? i.Category.name : "uncategorized",
+        stock: i.quantity,
+        price: Number(i.sell_price),
+        cost_price: latestRestock ? Number(latestRestock.cost_price) : 0,
+        supplier_id: i.supplier_id
+      };
+    });
 
     res.status(200).json(mappedStocks);
   } catch (error) {
@@ -26,28 +33,65 @@ exports.getStocks = async (req, res) => {
   }
 };
 
-// 2. UPDATE STOCK LEVEL BY ITEM ID
-exports.updateStock = async (req, res) => {
+exports.bulkRestock = async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const { itemId, quantity } = req.body;
+    const { restocks } = req.body; // Array of { itemId, quantityToAdd, costPrice }
 
-    if (itemId === undefined || quantity === undefined) {
-      return res.status(400).json({ error: "Item ID and quantity are required" });
+    if (!Array.isArray(restocks) || restocks.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ error: "Invalid restock list" });
     }
 
-    const item = await Item.findOne({
-      where: { id: itemId, deleted_at: null }
-    });
+    for (const entry of restocks) {
+      const { itemId, quantityToAdd, costPrice } = entry;
 
-    if (!item) {
-      return res.status(404).json({ error: "Item not found" });
+      if (!itemId || !quantityToAdd || quantityToAdd <= 0 || !costPrice || costPrice <= 0) {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Invalid restock entry details" });
+      }
+
+      // Find item
+      const item = await Item.findOne({
+        where: { id: itemId, deleted_at: null },
+        transaction
+      });
+
+      if (!item) {
+        await transaction.rollback();
+        return res.status(404).json({ error: `Item with ID ${itemId} not found` });
+      }
+
+      if (Number(costPrice) > Number(item.sell_price)) {
+        await transaction.rollback();
+        return res.status(400).json({ error: `Unit cost price for "${item.name}" (₱${Number(costPrice).toLocaleString()}) cannot exceed its selling price (₱${Number(item.sell_price).toLocaleString()})` });
+      }
+
+      // Update quantity on item
+      await item.update(
+        {
+          quantity: item.quantity + Number(quantityToAdd)
+        },
+        { transaction }
+      );
+
+      // Create restock log using the item's assigned supplier
+      await db.RestockLog.create(
+        {
+          item_id: itemId,
+          supplier_id: item.supplier_id || null,
+          quantity: Number(quantityToAdd),
+          cost_price: Number(costPrice)
+        },
+        { transaction }
+      );
     }
 
-    await item.update({ quantity: Number(quantity) });
-
-    res.status(200).json({ success: true, message: "Stock updated successfully!" });
+    await transaction.commit();
+    res.status(200).json({ success: true, message: "Bulk restocking completed successfully!" });
   } catch (error) {
-    console.error("Failed to update stock:", error);
-    res.status(500).json({ error: "Failed to update stock" });
+    await transaction.rollback();
+    console.error("Bulk restocking failed:", error);
+    res.status(500).json({ error: "Bulk restocking failed" });
   }
 };

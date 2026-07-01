@@ -1,6 +1,9 @@
 const db = require("../models");
 const sequelize = db.sequelize;
 
+// Paid order condition (reusable SQL fragment)
+const PAID_COND = `((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4))`;
+
 exports.addressChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
@@ -19,11 +22,7 @@ exports.categoryChart = async (req, res) => {
     const rows = await sequelize.query(
       `SELECT 
          c.name as category, 
-         COALESCE(SUM(CASE 
-           WHEN oi.status_id IS NOT NULL AND ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
-           THEN ol.quantity 
-           ELSE 0 
-         END), 0) as total 
+         COALESCE(SUM(CASE WHEN ${PAID_COND} THEN ol.quantity ELSE 0 END), 0) as total 
        FROM category c 
        LEFT JOIN item i ON c.id = i.category_id 
        LEFT JOIN orderline ol ON i.id = ol.item_id 
@@ -52,12 +51,10 @@ exports.salesChart = async (req, res) => {
   try {
     const rows = await sequelize.query(
       `SELECT 
-         MONTHNAME(oi.date_placed) as month, 
-         SUM(CASE 
-           WHEN ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
-           THEN ol.quantity * ol.sell_price 
-           ELSE 0 
-         END) as total 
+         MONTHNAME(oi.date_placed) as month,
+         MONTH(oi.date_placed) as month_num,
+         SUM(CASE WHEN ${PAID_COND} THEN ol.quantity * ol.sell_price ELSE 0 END) as revenue,
+         SUM(CASE WHEN ${PAID_COND} THEN ol.quantity * ol.cost_price ELSE 0 END) as expenses
        FROM orderinfo oi 
        INNER JOIN orderline ol ON oi.id = ol.orderinfo_id
        LEFT JOIN payments p ON oi.id = p.orderinfo_id
@@ -77,11 +74,7 @@ exports.itemsChart = async (req, res) => {
     const rows = await sequelize.query(
       `SELECT 
          i.name as items, 
-         SUM(CASE 
-           WHEN ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
-           THEN ol.quantity 
-           ELSE 0 
-         END) as total 
+         SUM(CASE WHEN ${PAID_COND} THEN ol.quantity ELSE 0 END) as total 
        FROM item i 
        INNER JOIN orderline ol ON i.id = ol.item_id 
        INNER JOIN orderinfo oi ON ol.orderinfo_id = oi.id
@@ -98,56 +91,102 @@ exports.itemsChart = async (req, res) => {
 
 exports.dashboardStats = async (req, res) => {
   try {
-    const [revOrderRes] = await sequelize.query(
+    // --- Revenue & profit from completed paid orders ---
+    const [financials] = await sequelize.query(
       `SELECT 
-         COALESCE(SUM(CASE 
-           WHEN ((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4)) 
-           THEN ol.quantity * ol.sell_price 
-           ELSE 0 
-         END), 0) as total_revenue, 
-         COUNT(DISTINCT oi.id) as order_count 
+         COALESCE(SUM(CASE WHEN ${PAID_COND} THEN ol.quantity * ol.sell_price ELSE 0 END), 0) as total_revenue,
+         COALESCE(SUM(CASE WHEN ${PAID_COND} THEN ol.quantity * ol.cost_price ELSE 0 END), 0) as total_cogs,
+         COUNT(DISTINCT oi.id) as order_count
        FROM orderinfo oi 
        LEFT JOIN orderline ol ON oi.id = ol.orderinfo_id
        LEFT JOIN payments p ON oi.id = p.orderinfo_id`,
       { type: db.Sequelize.QueryTypes.SELECT }
     );
-    
+
+    // --- Total restock expenses (all time) ---
+    const [restockExpenses] = await sequelize.query(
+      `SELECT COALESCE(SUM(quantity * cost_price), 0) as total_spent FROM restock_logs`,
+      { type: db.Sequelize.QueryTypes.SELECT }
+    );
+
+    // --- Inventory value (current stock × latest cost per item) ---
+    const [inventoryValue] = await sequelize.query(
+      `SELECT COALESCE(SUM(i.quantity * COALESCE(rl.cost_price, 0)), 0) as inventory_value
+       FROM item i
+       LEFT JOIN (
+         SELECT item_id, cost_price
+         FROM restock_logs r1
+         WHERE created_at = (SELECT MAX(created_at) FROM restock_logs r2 WHERE r2.item_id = r1.item_id)
+       ) rl ON rl.item_id = i.id
+       WHERE i.deleted_at IS NULL`,
+      { type: db.Sequelize.QueryTypes.SELECT }
+    );
+
+    // --- Customers ---
     const [custRes] = await sequelize.query(
       "SELECT COUNT(*) as count FROM customer WHERE deleted_at IS NULL",
       { type: db.Sequelize.QueryTypes.SELECT }
     );
 
+    // --- Stock alerts ---
     const [outOfStockRes] = await sequelize.query(
       "SELECT COUNT(*) as count FROM item WHERE quantity = 0 AND deleted_at IS NULL",
       { type: db.Sequelize.QueryTypes.SELECT }
     );
-
     const [settingsRes] = await sequelize.query(
       "SELECT low_stock_threshold FROM settings LIMIT 1",
       { type: db.Sequelize.QueryTypes.SELECT }
     );
     const threshold = parseInt(settingsRes ? settingsRes.low_stock_threshold : 5) || 5;
-
     const [lowStockRes] = await sequelize.query(
       "SELECT COUNT(*) as count FROM item WHERE quantity > 0 AND quantity <= :threshold AND deleted_at IS NULL",
       { replacements: { threshold }, type: db.Sequelize.QueryTypes.SELECT }
     );
 
-    const dbRevenue = parseFloat(revOrderRes.total_revenue || 0);
-    const dbOrders = parseInt(revOrderRes.order_count || 0);
-    const dbCustomers = parseInt(custRes.count || 0);
-    const dbOutOfStock = parseInt(outOfStockRes.count || 0);
-    const dbLowStock = parseInt(lowStockRes.count || 0);
+    const revenue       = parseFloat(financials.total_revenue || 0);
+    const cogs          = parseFloat(financials.total_cogs || 0);
+    const profit        = revenue - cogs;
+    const totalSpent    = parseFloat(restockExpenses.total_spent || 0);
+    const invValue      = parseFloat(inventoryValue.inventory_value || 0);
 
     res.status(200).json({
-      revenue: dbRevenue,
-      orders: dbOrders,
-      customers: dbCustomers,
-      outOfStock: dbOutOfStock,
-      lowStock: dbLowStock
+      revenue,
+      cogs,
+      profit,
+      totalRestockSpent: totalSpent,
+      inventoryValue: invValue,
+      orders:       parseInt(financials.order_count || 0),
+      customers:    parseInt(custRes.count || 0),
+      outOfStock:   parseInt(outOfStockRes.count || 0),
+      lowStock:     parseInt(lowStockRes.count || 0)
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error fetching dashboard stats" });
+  }
+};
+
+// --- Recent Restock Logs ---
+exports.stockActivity = async (req, res) => {
+  try {
+    const logs = await sequelize.query(
+      `SELECT 
+         rl.created_at as event_time,
+         i.name as item_name,
+         rl.quantity,
+         rl.cost_price,
+         COALESCE(s.name, 'No Supplier') as supplier_name,
+         (rl.quantity * rl.cost_price) as total_cost
+       FROM restock_logs rl
+       INNER JOIN item i ON rl.item_id = i.id
+       LEFT JOIN supplier s ON rl.supplier_id = s.id
+       ORDER BY rl.created_at DESC
+       LIMIT 30`,
+      { type: db.Sequelize.QueryTypes.SELECT }
+    );
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching restock logs" });
   }
 };
