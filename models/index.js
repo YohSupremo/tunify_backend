@@ -6,6 +6,8 @@ const Brand = require('./Brand');
 const Category = require('./Category');
 const Supplier = require('./Supplier');
 const ItemImage = require('./ItemImage');
+const Review = require('./Review');
+const Settings = require('./Settings');
 
 const db = {};
 db.Item = Item(sequelize, require('sequelize').DataTypes);
@@ -15,6 +17,8 @@ db.Brand = Brand(sequelize, require('sequelize').DataTypes);
 db.Category = Category(sequelize, require('sequelize').DataTypes);
 db.Supplier = Supplier(sequelize, require('sequelize').DataTypes);
 db.ItemImage = ItemImage(sequelize, require('sequelize').DataTypes);
+db.Review = Review(sequelize, require('sequelize').DataTypes);
+db.Settings = Settings(sequelize, require('sequelize').DataTypes);
 
 // user relationship to customer
 db.User.hasOne(db.Customer, {
@@ -56,6 +60,21 @@ db.Item.hasMany(db.ItemImage, {
 });
 db.ItemImage.belongsTo(db.Item, {
     foreignKey: 'item_id'
+});
+
+// review relationships
+db.Item.hasMany(db.Review, {
+    foreignKey: 'item_id',
+    as: 'reviews'
+});
+db.Review.belongsTo(db.Item, {
+    foreignKey: 'item_id'
+});
+db.User.hasMany(db.Review, {
+    foreignKey: 'user_id'
+});
+db.Review.belongsTo(db.User, {
+    foreignKey: 'user_id'
 });
 
 db.sequelize = sequelize;
