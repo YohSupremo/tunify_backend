@@ -22,6 +22,9 @@ exports.isAuthenticatedUser = async (req, res, next) => {
         if (!user) {
             return res.status(401).json({ message: 'Account not found. Please log in again.' });
         }
+        if (user.token !== token) {
+            return res.status(401).json({ message: 'Session expired or logged out. Please log in again.' });
+        }
         if (user.deleted_at !== null) {
             return res.status(401).json({ message: 'Your account has been deactivated. Please contact support.' });
         }

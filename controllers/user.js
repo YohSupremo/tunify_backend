@@ -391,3 +391,14 @@ exports.checkEmail = async (req, res) => {
   }
 };
 
+exports.logoutUser = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await User.update({ token: null }, { where: { id: userId } });
+    res.status(200).json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout failed:", error);
+    res.status(500).json({ error: "Logout failed" });
+  }
+};
+

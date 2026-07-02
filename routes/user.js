@@ -9,6 +9,7 @@ const router = express.Router();
 router.get("/check-email", userController.checkEmail);
 router.post("/register", userController.registerUser);
 router.post("/login", userController.loginUser);
+router.post("/logout", isAuthenticatedUser, userController.logoutUser);
 router.post("/update-profile", upload.single("image"), userController.updateProfile);
 router.delete("/deactivate", userController.deactivateUser);
 router.get("/", userController.getUser);
