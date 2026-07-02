@@ -65,6 +65,16 @@ exports.getItems = async (req, res) => {
     const mappedItems = items.map(item => {
       const primaryImgObj = (item.images && item.images.find(img => img.is_primary)) || (item.images && item.images[0]);
       const latestRestock = item.restockLogs && item.restockLogs.length > 0 ? item.restockLogs[0] : null;
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      let isNew = false;
+      if (item.created_at && new Date(item.created_at) >= sevenDaysAgo) {
+        isNew = true;
+      } else if (latestRestock && latestRestock.created_at && new Date(latestRestock.created_at) >= sevenDaysAgo) {
+        isNew = true;
+      }
+
       return {
         id: item.id,
         name: item.name,
@@ -85,6 +95,7 @@ exports.getItems = async (req, res) => {
           sort_order: img.sort_order
         })).sort((a, b) => a.sort_order - b.sort_order) : [],
         desc: item.description || "",
+        badge: isNew ? "new" : "",
         deleted_at: item.deleted_at || null
       };
     });

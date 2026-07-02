@@ -378,19 +378,12 @@ INSERT INTO restock_logs (item_id, supplier_id, quantity, cost_price) VALUES
 
 -- Seed item images (primary + additional shots for first 6 products as examples)
 INSERT INTO item_images (item_id, image_path, is_primary, sort_order) VALUES
-(1, 'images/guitar_strat_1.png', TRUE,  1),
-(1, 'images/guitar_strat_2.png', FALSE, 2),
-(1, 'images/guitar_strat_3.png', FALSE, 3),
-(2, 'images/drums_roland_1.png', TRUE,  1),
-(2, 'images/drums_roland_2.png', FALSE, 2),
-(3, 'images/piano_yamaha_1.png', TRUE,  1),
-(3, 'images/piano_yamaha_2.png', FALSE, 2),
-(3, 'images/piano_yamaha_3.png', FALSE, 3),
-(4, 'images/les_paul_1.png',     TRUE,  1),
-(4, 'images/les_paul_2.png',     FALSE, 2),
-(5, 'images/cajon_1.png',        TRUE,  1),
-(6, 'images/nord_stage_1.png',   TRUE,  1),
-(6, 'images/nord_stage_2.png',   FALSE, 2);
+(1, 'images/guitar_strat.png', TRUE,  1),
+(2, 'images/drums_roland.png', TRUE,  1),
+(3, 'images/piano_yamaha.png', TRUE,  1),
+(4, 'images/guitar_strat.png', TRUE,  1),
+(5, 'images/drums_roland.png', TRUE,  1),
+(6, 'images/piano_yamaha.png', TRUE,  1);
 
 -- Seed the 3 default orders into orderinfo and orderline
 INSERT INTO orderinfo (id, user_id, address_id, status_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed, date_shipped) VALUES

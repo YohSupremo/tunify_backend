@@ -374,3 +374,20 @@ exports.deactivateUser = async (req, res) => {
   }
 };
 
+exports.checkEmail = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ error: "Email query parameter is required" });
+    }
+    const user = await User.findOne({ where: { email, deleted_at: null } });
+    if (user) {
+      return res.status(200).json({ exists: true, message: "Email is already taken" });
+    }
+    return res.status(200).json({ exists: false, message: "Email is available" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error checking email availability" });
+  }
+};
+
