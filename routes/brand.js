@@ -1,15 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const brandController = require("../controllers/brand");
-const { isAuthenticatedUser } = require("../middlewares/auth");
+const { isAuthenticatedUser, isAdmin } = require("../middlewares/auth");
 const upload = require("../utils/multer");
 
 // Public route: anyone can view brands
 router.get("/brands", brandController.getBrands);
 
-// Protected routes: only logged-in users/admins can modify
-router.post("/brands", isAuthenticatedUser, upload.single("logo"), brandController.createBrand);
-router.put("/brands", isAuthenticatedUser, upload.single("logo"), brandController.updateBrand);
-router.delete("/brands", isAuthenticatedUser, brandController.deleteBrand);
+// Protected routes: only admins can modify
+router.post("/brands", isAuthenticatedUser, isAdmin, upload.single("logo"), brandController.createBrand);
+router.put("/brands", isAuthenticatedUser, isAdmin, upload.single("logo"), brandController.updateBrand);
+router.delete("/brands", isAuthenticatedUser, isAdmin, brandController.deleteBrand);
 
 module.exports = router;

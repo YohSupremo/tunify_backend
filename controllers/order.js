@@ -587,6 +587,12 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(403).json({ error: "Access denied. You can only update your own orders." });
     }
 
+    // Customers can only transition their own orders to Cancelled (statusId === 5)
+    if (req.body.user.role !== 'admin' && statusId !== 5) {
+      await transaction.rollback();
+      return res.status(403).json({ error: "Access denied. Customers can only cancel their own orders." });
+    }
+
     const oldStatusId = oldOrder.status_id;
 
     // 1. Stock handling if order is Cancelled
