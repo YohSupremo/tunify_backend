@@ -96,7 +96,7 @@ exports.dashboardStats = async (req, res) => {
       `SELECT 
          COALESCE(SUM(CASE WHEN ${PAID_COND} THEN ol.quantity * ol.sell_price ELSE 0 END), 0) as total_revenue,
          COALESCE(SUM(CASE WHEN ${PAID_COND} THEN ol.quantity * ol.cost_price ELSE 0 END), 0) as total_cogs,
-         COUNT(DISTINCT oi.id) as order_count
+         COUNT(DISTINCT CASE WHEN ${PAID_COND} THEN oi.id ELSE NULL END) as order_count
        FROM orderinfo oi 
        LEFT JOIN orderline ol ON oi.id = ol.orderinfo_id
        LEFT JOIN payments p ON oi.id = p.orderinfo_id`,
