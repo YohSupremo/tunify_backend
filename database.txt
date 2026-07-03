@@ -96,7 +96,6 @@ CREATE TABLE item (
   id          INT            NOT NULL AUTO_INCREMENT,
   brand_id    INT            NOT NULL,
   category_id INT            NOT NULL,
-  supplier_id INT            NULL,
   name        VARCHAR(150)   NOT NULL,
   description TEXT           NULL,
   sell_price  DECIMAL(10, 2) NOT NULL,
@@ -111,9 +110,6 @@ CREATE TABLE item (
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_item_category
     FOREIGN KEY (category_id) REFERENCES category (id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_item_supplier
-    FOREIGN KEY (supplier_id) REFERENCES supplier (id)
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -121,7 +117,7 @@ CREATE TABLE item (
 CREATE TABLE restock_logs (
   id          INT            NOT NULL AUTO_INCREMENT,
   item_id     INT            NOT NULL,
-  supplier_id INT            NULL,
+  supplier_id INT            NOT NULL,
   quantity    INT            NOT NULL,
   cost_price  DECIMAL(10, 2) NOT NULL,
   created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -131,7 +127,7 @@ CREATE TABLE restock_logs (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_restock_supplier
     FOREIGN KEY (supplier_id) REFERENCES supplier (id)
-    ON DELETE SET NULL ON UPDATE CASCADE
+    ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- Table 6b: item_images
