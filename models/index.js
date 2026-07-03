@@ -47,13 +47,10 @@ db.Item.belongsTo(db.Category, {
     foreignKey: 'category_id'
 });
 
-// supplier relationship to item
-db.Supplier.hasMany(db.Item, {
-    foreignKey: 'supplier_id'
-});
-db.Item.belongsTo(db.Supplier, {
-    foreignKey: 'supplier_id'
-});
+// NOTE: Supplier is no longer directly on item. Supplier links to item
+// exclusively through restock_logs. The Supplier↔Item direct association
+// (via supplier_id on item) has been removed. Use restock_logs to find
+// which supplier(s) stocked a given item.
 
 // item relationship to item_images
 db.Item.hasMany(db.ItemImage, {

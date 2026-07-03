@@ -6,6 +6,7 @@ const { isAuthenticatedUser, isAdmin } = require("../middlewares/auth");
 router.get("/categories", categoryController.getCategories);
 
 router.post("/categories", isAuthenticatedUser, isAdmin, categoryController.createCategory);
+router.post("/categories/restore", isAuthenticatedUser, isAdmin, categoryController.restoreCategory);
 router.put("/categories", isAuthenticatedUser, isAdmin, categoryController.updateCategory);
 router.delete("/categories", isAuthenticatedUser, isAdmin, categoryController.deleteCategory);
 

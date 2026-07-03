@@ -5,8 +5,16 @@ const Item = db.Item;
 // 1. GET ALL
 exports.getBrands = async (req, res) => {
   try {
+    const { status } = req.query; // active | deactivated | all
+    let whereClause = {};
+    if (!status || status === "active") {
+      whereClause = { deleted_at: null };
+    } else if (status === "deactivated") {
+      whereClause = { deleted_at: { [db.Sequelize.Op.ne]: null } };
+    }
+
     const brands = await Brand.findAll({
-      where: { deleted_at: null }
+      where: whereClause
     });
     res.status(200).json(brands);
   } catch (error) {
@@ -190,5 +198,34 @@ exports.deleteBrand = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to delete brand" });
+  }
+};
+
+// 5. RESTORE
+exports.restoreBrand = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: "Brand name is required to restore" });
+    }
+
+    const brand = await Brand.findOne({
+      where: { name }
+    });
+
+    if (!brand) {
+      return res.status(404).json({ error: "Brand not found" });
+    }
+
+    if (!brand.deleted_at) {
+      return res.status(400).json({ error: "Brand is already active" });
+    }
+
+    await brand.update({ deleted_at: null });
+    res.status(200).json({ success: true, message: `Brand "${name}" restored successfully!` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to restore brand" });
   }
 };

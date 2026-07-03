@@ -5,8 +5,16 @@ const Item = db.Item;
 // 1. GET ALL (Returns ID, Name, Description)
 exports.getCategories = async (req, res) => {
   try {
+    const { status } = req.query; // active | deactivated | all
+    let whereClause = {};
+    if (!status || status === "active") {
+      whereClause = { deleted_at: null };
+    } else if (status === "deactivated") {
+      whereClause = { deleted_at: { [db.Sequelize.Op.ne]: null } };
+    }
+
     const categories = await Category.findAll({
-      where: { deleted_at: null }
+      where: whereClause
     });
     res.status(200).json(categories);
   } catch (error) {
@@ -138,5 +146,34 @@ exports.deleteCategory = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to delete category" });
+  }
+};
+
+// 5. RESTORE
+exports.restoreCategory = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: "Category name is required to restore" });
+    }
+
+    const category = await Category.findOne({
+      where: { name: name.toLowerCase() }
+    });
+
+    if (!category) {
+      return res.status(404).json({ error: "Category not found" });
+    }
+
+    if (!category.deleted_at) {
+      return res.status(400).json({ error: "Category is already active" });
+    }
+
+    await category.update({ deleted_at: null });
+    res.status(200).json({ success: true, message: `Category "${name}" restored successfully!` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to restore category" });
   }
 };

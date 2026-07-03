@@ -17,11 +17,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 1
       },
-      supplier_id: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        defaultValue: null
-      },
       name: {
         type: DataTypes.STRING(150),
         allowNull: false,
@@ -39,7 +34,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 0,
       },
-
       is_featured: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

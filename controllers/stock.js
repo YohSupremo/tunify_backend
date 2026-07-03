@@ -2,14 +2,20 @@ const db = require("../models");
 const Item = db.Item;
 const Category = db.Category;
 
-// 1. GET ALL STOCKS (mapped to frontend expectations)
+// 1. GET ALL STOCKS (with effective cost = most recent restock cost_price)
 exports.getStocks = async (req, res) => {
   try {
     const items = await Item.findAll({
       where: { deleted_at: null },
       include: [
         { model: Category, attributes: ["name"] },
-        { model: db.RestockLog, as: "restockLogs", limit: 1, order: [["created_at", "DESC"]] }
+        {
+          model: db.RestockLog,
+          as: "restockLogs",
+          limit: 1,
+          order: [["created_at", "DESC"]],
+          include: [{ model: db.Supplier, attributes: ["name", "id"] }]
+        }
       ]
     });
 
@@ -22,7 +28,8 @@ exports.getStocks = async (req, res) => {
         stock: i.quantity,
         price: Number(i.sell_price),
         cost_price: latestRestock ? Number(latestRestock.cost_price) : 0,
-        supplier_id: i.supplier_id
+        last_supplier_id: latestRestock && latestRestock.Supplier ? latestRestock.Supplier.id : null,
+        last_supplier_name: latestRestock && latestRestock.Supplier ? latestRestock.Supplier.name : null
       };
     });
 
@@ -33,53 +40,92 @@ exports.getStocks = async (req, res) => {
   }
 };
 
+// 2. BULK RESTOCK — accepts array of {itemId, quantityToAdd, costPrice, supplierId}
 exports.bulkRestock = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   try {
-    const { restocks } = req.body; // Array of { itemId, quantityToAdd, costPrice }
+    const { restocks } = req.body;
 
     if (!Array.isArray(restocks) || restocks.length === 0) {
       await transaction.rollback();
-      return res.status(400).json({ error: "Invalid restock list" });
+      return res.status(400).json({ error: "Restock list cannot be empty." });
     }
 
-    for (const entry of restocks) {
-      const { itemId, quantityToAdd, costPrice } = entry;
+    // Validate all lines first — reject whole batch on any failure
+    const failedLines = [];
+    const itemCache = {};
+    const supplierCache = {};
 
-      if (!itemId || !quantityToAdd || quantityToAdd <= 0 || !costPrice || costPrice <= 0) {
-        await transaction.rollback();
-        return res.status(400).json({ error: "Invalid restock entry details" });
+    for (let i = 0; i < restocks.length; i++) {
+      const { itemId, quantityToAdd, costPrice, supplierId } = restocks[i];
+
+      // Validate supplier for this row
+      if (!supplierId) {
+        failedLines.push({ lineIndex: i + 1, itemId, reason: "A supplier must be selected for this row." });
+        continue;
+      }
+
+      if (!supplierCache[supplierId]) {
+        const supplier = await db.Supplier.findOne({
+          where: { id: supplierId, deleted_at: null },
+          transaction
+        });
+        if (!supplier) {
+          failedLines.push({ lineIndex: i + 1, itemId, reason: `Selected supplier ID ${supplierId} not found or deactivated.` });
+          continue;
+        }
+        supplierCache[supplierId] = supplier;
+      }
+
+      // quantity must be a positive integer
+      if (!itemId || !Number.isInteger(Number(quantityToAdd)) || Number(quantityToAdd) <= 0) {
+        failedLines.push({ lineIndex: i + 1, itemId, reason: "Quantity must be a positive whole number." });
+        continue;
+      }
+
+      // costPrice must be positive
+      if (costPrice === undefined || costPrice === null || Number(costPrice) <= 0) {
+        failedLines.push({ lineIndex: i + 1, itemId, reason: "Cost price must be a positive number." });
+        continue;
       }
 
       // Find item
-      const item = await Item.findOne({
-        where: { id: itemId, deleted_at: null },
-        transaction
-      });
-
+      const item = await Item.findOne({ where: { id: itemId, deleted_at: null }, transaction });
       if (!item) {
-        await transaction.rollback();
-        return res.status(404).json({ error: `Item with ID ${itemId} not found` });
+        failedLines.push({ lineIndex: i + 1, itemId, reason: `Item ID ${itemId} not found.` });
+        continue;
       }
+      itemCache[itemId] = item;
 
-      if (Number(costPrice) > Number(item.sell_price)) {
-        await transaction.rollback();
-        return res.status(400).json({ error: `Unit cost price for "${item.name}" (₱${Number(costPrice).toLocaleString()}) cannot exceed its selling price (₱${Number(item.sell_price).toLocaleString()})` });
+      // cost_price must be strictly less than item's sell_price
+      if (Number(costPrice) >= Number(item.sell_price)) {
+        failedLines.push({
+          lineIndex: i + 1,
+          itemId,
+          reason: `Unit cost ₱${Number(costPrice).toLocaleString()} for "${item.name}" must be less than its store selling price ₱${Number(item.sell_price).toLocaleString()}.`
+        });
       }
+    }
 
-      // Update quantity on item
-      await item.update(
-        {
-          quantity: item.quantity + Number(quantityToAdd)
-        },
-        { transaction }
-      );
+    if (failedLines.length > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        error: `Validation failed on ${failedLines.length} line(s). No records were saved.`,
+        failedLines
+      });
+    }
 
-      // Create restock log using the item's assigned supplier
+    // All lines valid — commit
+    for (const entry of restocks) {
+      const { itemId, quantityToAdd, costPrice, supplierId } = entry;
+      const item = itemCache[itemId];
+
+      await item.update({ quantity: item.quantity + Number(quantityToAdd) }, { transaction });
+
       await db.RestockLog.create(
         {
           item_id: itemId,
-          supplier_id: item.supplier_id || null,
+          supplier_id: Number(supplierId),
           quantity: Number(quantityToAdd),
           cost_price: Number(costPrice)
         },

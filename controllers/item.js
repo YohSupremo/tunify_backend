@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const db = require("../models");
+const { Sequelize } = require("sequelize");
 const Item = db.Item;
 const Brand = db.Brand;
 const Category = db.Category;
@@ -48,7 +49,7 @@ exports.getItems = async (req, res) => {
     if (!status || status === "active") {
       whereClause = { deleted_at: null };
     } else if (status === "deactivated") {
-      whereClause = { deleted_at: { [require("sequelize").Op.ne]: null } };
+      whereClause = { deleted_at: { [Sequelize.Op.ne]: null } };
     }
 
     const items = await Item.findAll({
@@ -56,9 +57,15 @@ exports.getItems = async (req, res) => {
       include: [
         { model: Brand, attributes: ["name"] },
         { model: Category, attributes: ["name"] },
-        { model: db.Supplier, attributes: ["name"] },
         { model: db.ItemImage, as: "images" },
-        { model: db.RestockLog, as: "restockLogs", limit: 1, order: [["created_at", "DESC"]] }
+        // Fetch the single most-recent restock log for cost_price
+        {
+          model: db.RestockLog,
+          as: "restockLogs",
+          limit: 1,
+          order: [["created_at", "DESC"]],
+          include: [{ model: db.Supplier, attributes: ["name"] }]
+        }
       ]
     });
 
@@ -80,12 +87,13 @@ exports.getItems = async (req, res) => {
         name: item.name,
         brand_id: item.brand_id,
         category_id: item.category_id,
-        supplier_id: item.supplier_id,
         brand: item.Brand ? item.Brand.name : "",
         category: item.Category ? item.Category.name : "",
-        supplier: item.Supplier ? item.Supplier.name : "",
-        price: Number(item.sell_price),
+        // Effective cost = most recent restock cost_price
         cost_price: latestRestock ? Number(latestRestock.cost_price) : 0,
+        // Most recent supplier name (from the latest restock log)
+        supplier: latestRestock && latestRestock.Supplier ? latestRestock.Supplier.name : "",
+        price: Number(item.sell_price),
         stock: item.quantity,
         image: primaryImgObj ? primaryImgObj.image_path : "",
         images: item.images ? item.images.map(img => ({
@@ -112,10 +120,10 @@ exports.getItems = async (req, res) => {
 // 2. CREATE ITEM
 exports.createItem = async (req, res) => {
   try {
-    const { name, brandName, categoryName, supplierName, price, stock, desc, is_featured, is_carousel } = req.body;
+    const { name, brandName, categoryName, price, stock, desc, is_featured, is_carousel } = req.body;
 
-    if (!name || !brandName || !categoryName || !supplierName || price === undefined) {
-      return res.status(400).json({ error: "Name, brand, category, supplier, and price are required" });
+    if (!name || !brandName || !categoryName || price === undefined) {
+      return res.status(400).json({ error: "Name, brand, category, and price are required" });
     }
 
     // Look up brand ID
@@ -126,14 +134,9 @@ exports.createItem = async (req, res) => {
     const category = await Category.findOne({ where: { name: categoryName.toLowerCase(), deleted_at: null } });
     if (!category) return res.status(400).json({ error: `Category "${categoryName}" not found` });
 
-    // Look up supplier ID
-    const supplier = await db.Supplier.findOne({ where: { name: supplierName, deleted_at: null } });
-    if (!supplier) return res.status(400).json({ error: `Supplier "${supplierName}" not found` });
-
     const item = await Item.create({
       brand_id: brand.id,
       category_id: category.id,
-      supplier_id: supplier.id,
       name: name.trim(),
       description: desc ? desc.trim() : null,
       sell_price: Number(price),
@@ -184,7 +187,7 @@ exports.createItem = async (req, res) => {
 // 3. UPDATE ITEM
 exports.updateItem = async (req, res) => {
   try {
-    const { id, name, brandName, categoryName, supplierName, price, stock, desc, is_featured, is_carousel } = req.body;
+    const { id, name, brandName, categoryName, price, stock, desc, is_featured, is_carousel } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Item ID is required" });
@@ -219,12 +222,6 @@ exports.updateItem = async (req, res) => {
       updateData.category_id = category.id;
     }
 
-    if (supplierName) {
-      const supplier = await db.Supplier.findOne({ where: { name: supplierName, deleted_at: null } });
-      if (!supplier) return res.status(400).json({ error: `Supplier "${supplierName}" not found` });
-      updateData.supplier_id = supplier.id;
-    }
-
     await item.update(updateData);
 
     // --- Process multiple images ---
@@ -233,7 +230,7 @@ exports.updateItem = async (req, res) => {
       await db.ItemImage.destroy({
         where: {
           item_id: id,
-          id: { [require("sequelize").Op.notIn]: keptImageIds }
+          id: { [Sequelize.Op.notIn]: keptImageIds }
         }
       });
     }
@@ -242,7 +239,7 @@ exports.updateItem = async (req, res) => {
     if (primaryImage && primaryImage.startsWith("existing_")) {
       const primaryId = parseInt(primaryImage.split("_")[1]);
       await db.ItemImage.update({ is_primary: true }, { where: { id: primaryId, item_id: id } });
-      await db.ItemImage.update({ is_primary: false }, { where: { item_id: id, id: { [require("sequelize").Op.ne]: primaryId } } });
+      await db.ItemImage.update({ is_primary: false }, { where: { item_id: id, id: { [Sequelize.Op.ne]: primaryId } } });
     } else if (primaryImage && primaryImage.startsWith("new_")) {
       await db.ItemImage.update({ is_primary: false }, { where: { item_id: id } });
     }
