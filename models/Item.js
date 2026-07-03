@@ -40,6 +40,16 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 0,
       },
 
+      is_featured: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      is_carousel: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
       deleted_at: {
         type: DataTypes.DATE,
         allowNull: true,

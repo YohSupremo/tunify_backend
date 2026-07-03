@@ -83,3 +83,40 @@ exports.updateSettings = async (req, res) => {
     res.status(500).json({ error: "Failed to update store settings" });
   }
 };
+
+// 3. BULK UPDATE HOMEPAGE CONTENT (Carousel & Featured items)
+exports.updateHomepageContent = async (req, res) => {
+  try {
+    const { carouselIds, featuredIds } = req.body;
+
+    if (!Array.isArray(carouselIds) || !Array.isArray(featuredIds)) {
+      return res.status(400).json({ error: "carouselIds and featuredIds arrays are required" });
+    }
+
+    const carouselIntIds = carouselIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+    const featuredIntIds = featuredIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
+    const Item = db.Item;
+
+    // Reset all flags first
+    await Item.update({ is_carousel: false, is_featured: false }, { where: {} });
+
+    // Update flagged items
+    if (carouselIntIds.length > 0) {
+      await Item.update({ is_carousel: true }, {
+        where: { id: { [require("sequelize").Op.in]: carouselIntIds } }
+      });
+    }
+
+    if (featuredIntIds.length > 0) {
+      await Item.update({ is_featured: true }, {
+        where: { id: { [require("sequelize").Op.in]: featuredIntIds } }
+      });
+    }
+
+    res.status(200).json({ success: true, message: "Homepage content settings updated successfully!" });
+  } catch (error) {
+    console.error("Failed to update homepage content:", error);
+    res.status(500).json({ error: "Failed to update homepage content settings" });
+  }
+};

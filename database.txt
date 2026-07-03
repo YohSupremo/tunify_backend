@@ -101,6 +101,8 @@ CREATE TABLE item (
   description TEXT           NULL,
   sell_price  DECIMAL(10, 2) NOT NULL,
   quantity    INT            NOT NULL DEFAULT 0,
+  is_featured BOOLEAN        NOT NULL DEFAULT FALSE,
+  is_carousel BOOLEAN        NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted_at  TIMESTAMP      NULL DEFAULT NULL,
   PRIMARY KEY (id),
@@ -401,3 +403,7 @@ INSERT INTO payments (orderinfo_id, payment_method, amount_paid, payment_status,
 (2401, 'gcash', 32600.00, 'paid', 'GC-20241102-001', '2024-11-02 09:55:00'),
 (2402, 'cod', 68100.00, 'paid', NULL, '2024-11-19 10:00:00'),
 (2403, 'card', 30000.00, 'pending', 'CARD-20241205-003', NULL);
+
+-- Seed default featured and carousel items
+UPDATE item SET is_carousel = TRUE WHERE id IN (1, 4, 6);
+UPDATE item SET is_featured = TRUE WHERE id IN (1, 2, 3, 5);

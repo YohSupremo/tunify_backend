@@ -96,6 +96,8 @@ exports.getItems = async (req, res) => {
         })).sort((a, b) => a.sort_order - b.sort_order) : [],
         desc: item.description || "",
         badge: isNew ? "new" : "",
+        is_featured: item.is_featured,
+        is_carousel: item.is_carousel,
         deleted_at: item.deleted_at || null
       };
     });
@@ -110,7 +112,7 @@ exports.getItems = async (req, res) => {
 // 2. CREATE ITEM
 exports.createItem = async (req, res) => {
   try {
-    const { name, brandName, categoryName, supplierName, price, stock, desc } = req.body;
+    const { name, brandName, categoryName, supplierName, price, stock, desc, is_featured, is_carousel } = req.body;
 
     if (!name || !brandName || !categoryName || !supplierName || price === undefined) {
       return res.status(400).json({ error: "Name, brand, category, supplier, and price are required" });
@@ -135,7 +137,9 @@ exports.createItem = async (req, res) => {
       name: name.trim(),
       description: desc ? desc.trim() : null,
       sell_price: Number(price),
-      quantity: 0
+      quantity: 0,
+      is_featured: is_featured === 'true' || is_featured === true,
+      is_carousel: is_carousel === 'true' || is_carousel === true
     });
 
     // Handle multiple uploaded files
@@ -180,7 +184,7 @@ exports.createItem = async (req, res) => {
 // 3. UPDATE ITEM
 exports.updateItem = async (req, res) => {
   try {
-    const { id, name, brandName, categoryName, supplierName, price, stock, desc } = req.body;
+    const { id, name, brandName, categoryName, supplierName, price, stock, desc, is_featured, is_carousel } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "Item ID is required" });
@@ -195,6 +199,12 @@ exports.updateItem = async (req, res) => {
     if (desc !== undefined) updateData.description = desc ? desc.trim() : null;
     if (price !== undefined) {
       updateData.sell_price = Number(price);
+    }
+    if (is_featured !== undefined) {
+      updateData.is_featured = is_featured === 'true' || is_featured === true;
+    }
+    if (is_carousel !== undefined) {
+      updateData.is_carousel = is_carousel === 'true' || is_carousel === true;
     }
 
     if (brandName) {
