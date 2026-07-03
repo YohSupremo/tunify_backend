@@ -9,5 +9,6 @@ router.post("/suppliers", isAuthenticatedUser, isAdmin, supplierController.creat
 
 router.put("/suppliers/:id", isAuthenticatedUser, isAdmin, supplierController.updateSupplier);
 router.delete("/suppliers/:id", isAuthenticatedUser, isAdmin, supplierController.deleteSupplier);
+router.patch("/suppliers/:id/restore", isAuthenticatedUser, isAdmin, supplierController.restoreSupplier);
 
 module.exports = router;

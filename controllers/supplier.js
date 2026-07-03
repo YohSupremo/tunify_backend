@@ -4,8 +4,20 @@ const Supplier = db.Supplier;
 // 1. GET ALL — includes restock entry count per supplier
 exports.getSuppliers = async (req, res) => {
   try {
+    const { status } = req.query; // active | deactivated | all
+    let whereClause = {};
+
+    if (status === "deactivated") {
+      whereClause = { deleted_at: { [db.Sequelize.Op.ne]: null } };
+    } else if (status === "all") {
+      // Fetch all, do not filter by deleted_at
+    } else {
+      // default: active only
+      whereClause = { deleted_at: null };
+    }
+
     const suppliers = await Supplier.findAll({
-      where: { deleted_at: null }
+      where: whereClause
     });
 
     // Attach restock entry counts
@@ -19,6 +31,7 @@ exports.getSuppliers = async (req, res) => {
         phone: s.phone,
         address_line: s.address_line,
         created_at: s.created_at,
+        deleted_at: s.deleted_at,
         restock_count: restockCount
       };
     }));
@@ -116,5 +129,26 @@ exports.deleteSupplier = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to deactivate supplier" });
+  }
+};
+
+// 5. RESTORE / REACTIVATE
+exports.restoreSupplier = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const supplier = await Supplier.findOne({
+      where: { id, deleted_at: { [db.Sequelize.Op.ne]: null } }
+    });
+
+    if (!supplier) {
+      return res.status(404).json({ error: "Supplier not found or already active" });
+    }
+
+    await supplier.update({ deleted_at: null });
+    res.status(200).json({ success: true, message: "Supplier reactivated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to reactivate supplier" });
   }
 };

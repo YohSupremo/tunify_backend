@@ -79,7 +79,8 @@ exports.itemsChart = async (req, res) => {
        INNER JOIN orderline ol ON i.id = ol.item_id 
        INNER JOIN orderinfo oi ON ol.orderinfo_id = oi.id
        LEFT JOIN payments p ON oi.id = p.orderinfo_id
-       GROUP BY i.name`,
+       GROUP BY i.name
+       HAVING total > 0`,
       { type: db.Sequelize.QueryTypes.SELECT }
     );
     res.status(200).json({ rows });
