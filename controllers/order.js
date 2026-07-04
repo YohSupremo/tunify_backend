@@ -2,6 +2,23 @@ const db = require("../models");
 const sendEmail = require('../utils/sendEmail');
 const generateReceiptPdf = require('../utils/generateReceiptPdf');
 
+// Helper to format Date objects or strings into a clean "MMM DD, YYYY hh:mm AM/PM" format
+const formatDate = (dateVal) => {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const pad = (n) => String(n).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  let hours = d.getHours();
+  const minutes = pad(d.getMinutes());
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  
+  return `${months[d.getMonth()]} ${pad(d.getDate())}, ${d.getFullYear()} ${hours}:${minutes} ${ampm}`;
+};
+
 // ── Receipt HTML builder (shared by placeOrder + updateOrderStatus) ──────────
 function buildReceiptHtml({ orderId, customerName, customerEmail, customerPhone, shippingStreet, shippingCity, shippingProvince, shippingZip, datePlaced, dateShipped, statusName, paymentMethod, paymentStatus, transactionRef, items, subtotal, shippingFee, grandTotal, headerTitle, headerSubtitle, storeName, storeEmail = '', storePhone = '' }) {
   const paymentLabels = { cod: 'Cash on Delivery (COD)', gcash: 'GCash', card: 'Credit / Debit Card', bank_transfer: 'Bank Transfer' };
@@ -52,7 +69,7 @@ function buildReceiptHtml({ orderId, customerName, customerEmail, customerPhone,
           <tr>
             <td style="background: linear-gradient(135deg, #1A1324 0%, #0A0710 100%); padding: 44px 40px; text-align: center; border-bottom: 1px solid rgba(251, 113, 133, 0.1);">
               <div style="font-size: 32px; font-weight: 800; color: #FBBF24; letter-spacing: 4px; text-shadow: 0 0 10px rgba(251, 191, 36, 0.2);">${(storeName || 'Tunify').toUpperCase()}</div>
-              <div style="font-size: 12px; color: #FB7185; margin-top: 4px; letter-spacing: 2px; font-weight: 600; text-transform: uppercase;">Sunset Amber & Rose Gold</div>
+              <div style="font-size: 12px; color: #FB7185; margin-top: 4px; letter-spacing: 2px; font-weight: 600; text-transform: uppercase;">Instruments, Accessories & Parts</div>
               <div style="margin-top: 24px; font-size: 22px; font-weight: 700; color: #FFF5F5;">${headerTitle || 'Order Confirmation'}</div>
               <div style="margin-top: 8px; font-size: 14px; color: #CBD5E1;">${headerSubtitle || 'Thank you for your order!'}</div>
             </td>
@@ -94,11 +111,11 @@ function buildReceiptHtml({ orderId, customerName, customerEmail, customerPhone,
                 <tr>
                   <td width="33%" valign="top">
                     <div style="font-size: 11px; font-weight: 700; color: #94A3B8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">Date Placed</div>
-                    <div style="font-size: 14px; color: #FFF5F5; font-weight: 600;">${datePlaced ? String(datePlaced).split('T')[0] : 'N/A'}</div>
+                    <div style="font-size: 14px; color: #FFF5F5; font-weight: 600;">${datePlaced ? formatDate(datePlaced) : 'N/A'}</div>
                   </td>
                   <td width="33%" valign="top">
                     <div style="font-size: 11px; font-weight: 700; color: #94A3B8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">Date Shipped</div>
-                    <div style="font-size: 14px; color: #FFF5F5; font-weight: 600;">${dateShipped ? String(dateShipped).split('T')[0] : 'Processing'}</div>
+                    <div style="font-size: 14px; color: #FFF5F5; font-weight: 600;">${dateShipped ? formatDate(dateShipped) : 'Processing'}</div>
                   </td>
                   <td width="34%" valign="top">
                     <div style="font-size: 11px; font-weight: 700; color: #94A3B8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">Payment Method</div>

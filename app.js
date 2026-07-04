@@ -44,3 +44,5 @@ app.listen(process.env.PORT, () => {
   console.log("DB_PASSWORD =", process.env.DB_PASSWORD);
   console.log("DB_HOST =", process.env.DB_HOST);
 });
+
+// Touched to trigger nodemon restart and reload .env configurations
