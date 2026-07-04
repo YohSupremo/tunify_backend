@@ -402,3 +402,45 @@ exports.logoutUser = async (req, res) => {
   }
 };
 
+exports.changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: "Old password and new password are required" });
+    }
+
+    if (newPassword.trim().length < 8) {
+      return res.status(400).json({ error: "New password must be at least 8 characters long." });
+    }
+
+    if (!/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      return res.status(400).json({ error: "New password must meet all strength requirements (at least 1 uppercase, 1 number, and 1 special character)." });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const match = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!match) {
+      return res.status(400).json({ error: "Incorrect current password" });
+    }
+
+    const isSame = await bcrypt.compare(newPassword.trim(), user.password_hash);
+    if (isSame) {
+      return res.status(400).json({ error: "New password cannot be the same as your current password" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+    await user.update({ password_hash: hashedPassword });
+
+    res.status(200).json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Change password failed:", error);
+    res.status(500).json({ error: "Change password failed", details: error.message });
+  }
+};
+

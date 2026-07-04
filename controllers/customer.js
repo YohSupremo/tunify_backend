@@ -214,7 +214,7 @@ exports.deactivateCustomer = async (req, res) => {
       return res.status(403).json({ error: "Cannot deactivate an admin account via this endpoint" });
     }
 
-    await user.update({ deleted_at: new Date() });
+    await user.update({ deleted_at: new Date(), token: null });
     res.status(200).json({ success: true, message: "Customer deactivated successfully" });
   } catch (error) {
     console.error(error);

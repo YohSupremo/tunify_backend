@@ -11,6 +11,7 @@ router.post("/register", userController.registerUser);
 router.post("/login", userController.loginUser);
 router.post("/logout", isAuthenticatedUser, userController.logoutUser);
 router.post("/update-profile", upload.single("image"), userController.updateProfile);
+router.put("/change-password", isAuthenticatedUser, userController.changePassword);
 router.delete("/deactivate", userController.deactivateUser);
 router.get("/", userController.getUser);
 
