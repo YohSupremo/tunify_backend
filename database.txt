@@ -1,5 +1,5 @@
 -- ============================================================
--- Tunify Database Reconstruction & Seed Script (v3)
+-- Tunify Database Reconstruction & Seed Script (v4 - Premium Mock)
 -- WARNING: This will drop the database and delete all existing data.
 -- ============================================================
 
@@ -7,11 +7,7 @@ DROP DATABASE IF EXISTS tunify_db;
 CREATE DATABASE tunify_db;
 USE tunify_db;
 
--- ------------------------------------------------------------
--- 1. Create Tables
--- ------------------------------------------------------------
 
--- Table 1: users
 CREATE TABLE users (
   id            INT          NOT NULL AUTO_INCREMENT,
   email         VARCHAR(255) NOT NULL UNIQUE,
@@ -23,7 +19,6 @@ CREATE TABLE users (
   PRIMARY KEY (id)
 );
 
--- Table 2: customer
 CREATE TABLE customer (
   id                 INT          NOT NULL AUTO_INCREMENT,
   user_id            INT          NOT NULL UNIQUE,
@@ -39,7 +34,6 @@ CREATE TABLE customer (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Table 2b: customer_addresses
 CREATE TABLE customer_addresses (
   id         INT          NOT NULL AUTO_INCREMENT,
   user_id    INT          NOT NULL,
@@ -57,7 +51,6 @@ CREATE TABLE customer_addresses (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Table 3: brand
 CREATE TABLE brand (
   id          INT          NOT NULL AUTO_INCREMENT,
   name        VARCHAR(100) NOT NULL UNIQUE,
@@ -68,7 +61,6 @@ CREATE TABLE brand (
   PRIMARY KEY (id)
 );
 
--- Table 4: category
 CREATE TABLE category (
   id          INT          NOT NULL AUTO_INCREMENT,
   name        VARCHAR(100) NOT NULL UNIQUE,
@@ -78,7 +70,6 @@ CREATE TABLE category (
   PRIMARY KEY (id)
 );
 
--- Table 5: supplier
 CREATE TABLE supplier (
   id           INT          NOT NULL AUTO_INCREMENT,
   name         VARCHAR(255) NOT NULL UNIQUE,
@@ -91,7 +82,6 @@ CREATE TABLE supplier (
   PRIMARY KEY (id)
 );
 
--- Table 6: item  (quantity merged in from old "stock" table)
 CREATE TABLE item (
   id          INT            NOT NULL AUTO_INCREMENT,
   brand_id    INT            NOT NULL,
@@ -113,7 +103,6 @@ CREATE TABLE item (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- Table 6c: restock_logs
 CREATE TABLE restock_logs (
   id          INT            NOT NULL AUTO_INCREMENT,
   item_id     INT            NOT NULL,
@@ -130,7 +119,6 @@ CREATE TABLE restock_logs (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- Table 6b: item_images
 CREATE TABLE item_images (
   id         INT          NOT NULL AUTO_INCREMENT,
   item_id    INT          NOT NULL,
@@ -144,7 +132,6 @@ CREATE TABLE item_images (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Table 7: settings  (global config, one row, typed columns)
 CREATE TABLE settings (
   id                   INT            NOT NULL DEFAULT 1,
   low_stock_threshold  INT            NOT NULL DEFAULT 5,
@@ -157,14 +144,12 @@ CREATE TABLE settings (
   PRIMARY KEY (id)
 );
 
--- Table 7b: order_statuses
 CREATE TABLE order_statuses (
   id          INT          NOT NULL AUTO_INCREMENT,
   status_name VARCHAR(50)  NOT NULL UNIQUE,
   PRIMARY KEY (id)
 );
 
--- Table 8: orderinfo
 CREATE TABLE orderinfo (
   id                INT            NOT NULL AUTO_INCREMENT,
   user_id           INT            NOT NULL,
@@ -189,7 +174,6 @@ CREATE TABLE orderinfo (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- Table 9: orderline
 CREATE TABLE orderline (
   orderinfo_id INT            NOT NULL,
   item_id      INT            NOT NULL,
@@ -205,7 +189,6 @@ CREATE TABLE orderline (
     ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- Table 10: review
 CREATE TABLE review (
   id         INT       NOT NULL AUTO_INCREMENT,
   user_id    INT       NOT NULL,
@@ -224,7 +207,6 @@ CREATE TABLE review (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Table 11: payments
 CREATE TABLE payments (
   id              INT            NOT NULL AUTO_INCREMENT,
   orderinfo_id    INT            NOT NULL UNIQUE,
@@ -240,42 +222,24 @@ CREATE TABLE payments (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-
 -- ------------------------------------------------------------
 -- 2. Seed Initial Data
 -- ------------------------------------------------------------
 
--- Seed Admin User (Username: admin@tunify.com, Password: password123 hashed via bcrypt)
-INSERT INTO users (id, email, password_hash, role) 
-VALUES (1, 'admin@tunify.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'admin');
+-- Seed Admin User (Username: admin@tunify.com, Password: password123)
+INSERT INTO users (id, email, password_hash, role) VALUES (1, 'admin@tunify.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'admin');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (1, 1, 'Alwin', 'Benitez', '+63 912 000 0000');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (1, 1, 'Home', '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', TRUE);
 
--- Seed Customer details for Admin user
-INSERT INTO customer (id, user_id, first_name, last_name, phone) 
-VALUES (1, 1, 'Alwin', 'Benitez', '');
+INSERT INTO settings (id, low_stock_threshold, default_shipping_fee, currency, tax_rate, store_name, store_contact_email, store_contact_phone) VALUES (1, 5, 100.00, 'PHP', 0.12, 'Tunify', 'support@tunify.com', '+63 912 000 0000');
 
--- Seed a default address for Admin user
-INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default)
-VALUES (1, 1, 'Home', '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', TRUE);
+INSERT INTO order_statuses (id, status_name) VALUES (1, 'Pending'), (2, 'Processing'), (3, 'Shipped'), (4, 'Delivered'), (5, 'Cancelled');
 
--- Seed global settings (single row of store-wide config)
-INSERT INTO settings (id, low_stock_threshold, default_shipping_fee, currency, tax_rate, store_name, store_contact_email, store_contact_phone)
-VALUES (1, 5, 100.00, 'PHP', 0.12, 'Tunify', 'support@tunify.com', '+63 912 000 0000');
-
--- Seed Order Statuses
-INSERT INTO order_statuses (id, status_name) VALUES
-(1, 'Pending'),
-(2, 'Processing'),
-(3, 'Shipped'),
-(4, 'Delivered'),
-(5, 'Cancelled');
-
--- Seed Suppliers
-INSERT INTO supplier (id, name, contact_name, email, phone, address_line) VALUES 
+INSERT INTO supplier (id, name, contact_name, email, phone, address_line) VALUES
 (1, 'Fender Asia Pacific', 'Juan dela Cruz', 'fender@example.com', '+63 912 000 0001', 'Makati City, Metro Manila'),
 (2, 'Yamaha Music PH', 'Maria Santos', 'yamaha@example.com', '+63 912 000 0002', 'BGC, Taguig City'),
 (3, 'Roland Philippines', 'Pedro Reyes', 'roland@example.com', '+63 912 000 0003', 'Quezon City, Metro Manila');
 
--- Seed Default Brands
 INSERT INTO brand (id, name, description) VALUES
 (1, 'Fender', 'Fender musical instruments'),
 (2, 'Gibson', 'Gibson musical instruments'),
@@ -291,11 +255,10 @@ INSERT INTO brand (id, name, description) VALUES
 (12, 'Pearl', 'Pearl musical instruments'),
 (13, 'Audio-Technica', 'Audio-Technica musical instruments'),
 (14, 'Boss', 'Boss musical instruments'),
-(15, 'D\'Addario', 'D\'Addario musical instruments'),
+(15, 'D''Addario', 'D''Addario musical instruments'),
 (16, 'Hercules', 'Hercules musical instruments'),
 (17, 'Evans', 'Evans musical instruments');
 
--- Seed Default Categories
 INSERT INTO category (id, name, description) VALUES
 (1, 'string', 'Stringed instruments'),
 (2, 'percussion', 'Drums and percussion'),
@@ -304,102 +267,795 @@ INSERT INTO category (id, name, description) VALUES
 (5, 'vocals', 'Microphones and vocal gear'),
 (6, 'accessories', 'Accessories and parts');
 
--- -- Seed all 32 products into item table, quantity now included directly
-INSERT INTO item (id, brand_id, category_id, supplier_id, name, description, sell_price, quantity) VALUES
-(1, 1, 1, 1, 'Stratocaster Standard', 'Classic alder body electric guitar with maple neck and single-coil pickups, known for its bright, versatile tone.', 32500.00, 14),
-(2, 4, 2, 3, 'Roland TD-17KVX', 'Electronic drum kit with mesh-head snare and toms, ideal for practice and live performance with realistic feel.', 68000.00, 6),
-(3, 3, 3, 2, 'Yamaha P-125', 'Compact 88-key digital piano with weighted action and built-in speakers, suited for home practice and gigging.', 29900.00, 22),
-(4, 2, 1, 1, 'Les Paul Classic', 'Mahogany body electric guitar with humbucker pickups, delivering warm sustain and a classic rock tone.', 55000.00, 4),
-(5, 8, 2, 2, 'Cajon Box Kit', 'Wooden box percussion instrument with internal snare wires, popular for acoustic and folk ensembles.', 6800.00, 31),
-(6, 9, 3, 3, 'Nord Stage 3 Compact', 'Performance keyboard combining piano, organ, and synth engines for professional stage use.', 185000.00, 3),
-(7, 1, 1, 1, 'Telecaster Player', 'Versatile electric guitar with twin single-coil pickups, known for its bright, twangy tone.', 28500.00, 11),
-(8, 4, 2, 3, 'SPD-SX Pad', 'Compact sampling percussion pad for triggering samples and loops during live performance.', 39000.00, 9),
-(9, 1, 1, 1, 'Jazz Bass Standard', 'Four-string electric base with dual single-coil pickups, offering punchy low-end and clarity.', 35800.00, 8),
-(10, 2, 1, 1, 'SG Standard', 'Lightweight mahogany electric guitar with a thinner body and dual humbuckers for a thicker tone.', 48500.00, 5),
-(11, 6, 1, 1, 'RG450DX', 'Fast-neck electric guitar designed for shredding, with high-output humbuckers.', 18900.00, 17),
-(12, 10, 1, 1, 'GS Mini Mahogany', 'Compact acoustic guitar with solid mahogany top, great for travel and smaller players.', 42000.00, 10),
-(13, 4, 3, 3, 'FP-30X Digital Piano', 'Portable digital piano with authentic hammer-action keys and onboard speakers.', 44500.00, 13),
-(14, 3, 1, 2, 'FG800 Acoustic', 'Entry-level acoustic guitar with solid spruce top, popular among beginners.', 12800.00, 26),
-(15, 9, 3, 3, 'Piano 5 73', '73-key stage piano with premium sampled grand piano sounds for professional performers.', 142000.00, 4),
-(16, 11, 3, 2, 'B2 Digital Piano', 'Affordable digital piano with weighted keys, ideal for students and home use.', 24500.00, 15),
-(17, 12, 2, 2, 'Export EXX725', 'Five-piece drum shell pack with hardware, designed for gigging drummers.', 52000.00, 7),
-(18, 8, 2, 2, 'HCS Cymbal Pack', 'Starter cymbal set including hi-hats, crash, and ride, ideal for new drummers.', 11500.00, 19),
-(19, 3, 4, 2, 'YAS-280 Alto Sax', 'Student-level alto saxophone with smooth key action and reliable intonation.', 89500.00, 6),
-(20, 5, 5, 1, 'SM58 Vocal Mic', 'Industry-standard dynamic vocal microphone known for durability and clear sound.', 7800.00, 42),
-(21, 13, 5, 1, 'AT2020 Condenser', 'Studio condenser microphone with wide dynamic range, ideal for recording vocals and instruments.', 9200.00, 24),
-(22, 14, 6, 1, 'Katana 50 Gen 3', 'Versatile guitar amplifier with built-in effects and multiple amp tones.', 21500.00, 12),
-(23, 15, 6, 1, 'EXL110 10-Pack', 'Nickel-wound electric guitar strings, 10-pack bundle for frequent restringing.', 3200.00, 55),
-(24, 16, 6, 1, 'GS414B Guitar Stand', 'Sturdy folding guitar stand with padded supports to protect instrument finish.', 1850.00, 38),
-(25, 7, 6, 1, 'MG15 Gold', 'Compact practice amplifier with classic Marshall tone shaping.', 9800.00, 16),
-(26, 12, 2, 2, 'Roadshow 5pc', 'Affordable five-piece drum kit suited for beginners and small venues.', 38500.00, 11),
-(27, 1, 6, 1, 'Mustang LT25', 'Compact practice amplifier with built-in digital effects and presets.', 14200.00, 14),
-(28, 17, 2, 2, 'HD Dry Pack', 'Drumhead dampening pack for reducing overtones and shaping drum sound.', 4500.00, 27),
-(29, 5, 5, 1, 'SRH840A Headphones', 'Closed-back studio monitor headphones with accurate, detailed sound reproduction.', 11200.00, 18),
-(30, 11, 3, 2, 'MINilogue XD', 'Analog synthesizer with digital multi-engine, popular for sound design and live performance.', 68500.00, 5),
-(31, 6, 1, 1, 'SR500E Bass', 'Lightweight electric bass guitar with active electronics for a modern tone.', 32800.00, 9),
-(32, 3, 3, 2, 'AvantGrand N1X', 'Hybrid piano combining acoustic grand piano action with digital sound technology.', 215000.00, 2);
+-- Seed 15 Customer Users
+INSERT INTO users (id, email, password_hash, role) VALUES (2, 'juan.cruz@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (2, 2, 'Juan', 'Cruz', '+63 917 123 4567');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (2, 2, 'Home', '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (3, 'maria.santos@yahoo.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (3, 3, 'Maria', 'Santos', '+63 918 234 5678');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (3, 3, 'Home', '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (4, 'pedro.reyes@hotmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (4, 4, 'Pedro', 'Reyes', '+63 919 345 6789');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (4, 4, 'Home', '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (5, 'jose.estrada@outlook.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (5, 5, 'Jose', 'Estrada', '+63 920 456 7890');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (5, 5, 'Home', '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (6, 'gloria.arroyo@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (6, 6, 'Gloria', 'Arroyo', '+63 921 567 8901');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (6, 6, 'Home', '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (7, 'rodrigo.duterte@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (7, 7, 'Rodrigo', 'Duterte', '+63 922 678 9012');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (7, 7, 'Home', 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (8, 'leni.robredo@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (8, 8, 'Leni', 'Robredo', '+63 923 789 0123');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (8, 8, 'Home', '22 Magsaysay Ave', 'Naga City', 'Camarines Sur', '4400', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (9, 'manny.pacquiao@yahoo.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (9, 9, 'Manny', 'Pacquiao', '+63 924 890 1234');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (9, 9, 'Home', 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (10, 'lea.salonga@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (10, 10, 'Lea', 'Salonga', '+63 925 901 2345');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (10, 10, 'Home', 'Broadway St', 'San Juan City', 'Metro Manila', '1500', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (11, 'andres.bonifacio@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (11, 11, 'Andres', 'Bonifacio', '+63 926 012 3456');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (11, 11, 'Home', '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (12, 'apolinario.mabini@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (12, 12, 'Apolinario', 'Mabini', '+63 927 123 4567');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (12, 12, 'Home', '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (13, 'melchora.aquino@yahoo.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (13, 13, 'Melchora', 'Aquino', '+63 928 234 5678');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (13, 13, 'Home', '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (14, 'emilio.aguinaldo@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (14, 14, 'Emilio', 'Aguinaldo', '+63 929 345 6789');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (14, 14, 'Home', 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (15, 'jose.rizal@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (15, 15, 'Jose', 'Rizal', '+63 930 456 7890');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (15, 15, 'Home', '1 Rizal St', 'Calamba City', 'Laguna', '4027', TRUE);
+INSERT INTO users (id, email, password_hash, role) VALUES (16, 'nene.aquino@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
+INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (16, 16, 'Nene', 'Aquino', '+63 931 567 8901');
+INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (16, 16, 'Home', 'Times St', 'Quezon City', 'Metro Manila', '1104', TRUE);
 
--- Seed initial restock logs corresponding to initial quantities and cost prices
-INSERT INTO restock_logs (item_id, supplier_id, quantity, cost_price) VALUES
-(1, 1, 14, 19500.00),
-(2, 3, 6, 40800.00),
-(3, 2, 22, 17940.00),
-(4, 1, 4, 33000.00),
-(5, 2, 31, 4080.00),
-(6, 3, 3, 111000.00),
-(7, 1, 11, 17100.00),
-(8, 3, 9, 23400.00),
-(9, 1, 8, 21480.00),
-(10, 1, 5, 29100.00),
-(11, 1, 17, 11340.00),
-(12, 1, 10, 25200.00),
-(13, 3, 13, 26700.00),
-(14, 2, 26, 7680.00),
-(15, 3, 4, 85200.00),
-(16, 2, 15, 14700.00),
-(17, 2, 7, 31200.00),
-(18, 2, 19, 6900.00),
-(19, 2, 6, 53700.00),
-(20, 1, 42, 4680.00),
-(21, 1, 24, 5520.00),
-(22, 1, 12, 12900.00),
-(23, 1, 55, 1920.00),
-(24, 1, 38, 1110.00),
-(25, 1, 16, 5880.00),
-(26, 2, 11, 23100.00),
-(27, 1, 14, 8520.00),
-(28, 2, 27, 2700.00),
-(29, 1, 18, 6720.00),
-(30, 2, 5, 41100.00),
-(31, 1, 9, 19680.00),
-(32, 2, 2, 129000.00);
+-- Seed all 32 products into item table
+INSERT INTO item (id, brand_id, category_id, name, description, sell_price, quantity, is_featured, is_carousel) VALUES
+(1, 1, 1, 'Stratocaster Standard', 'Classic alder body electric guitar with maple neck and single-coil pickups, known for its bright, versatile tone.', 32500, 11, TRUE, TRUE),
+(2, 4, 2, 'Roland TD-17KVX', 'Electronic drum kit with mesh-head snare and toms, ideal for practice and live performance with realistic feel.', 68000, 26, TRUE, TRUE),
+(3, 3, 3, 'Yamaha P-125', 'Compact 88-key digital piano with weighted action and built-in speakers, suited for home practice and gigging.', 29900, 9, TRUE, FALSE),
+(4, 2, 1, 'Les Paul Classic', 'Mahogany body electric guitar with humbucker pickups, delivering warm sustain and a classic rock tone.', 55000, 0, FALSE, TRUE),
+(5, 8, 2, 'Cajon Box Kit', 'Wooden box percussion instrument with internal snare wires, popular for acoustic and folk ensembles.', 6800, 24, TRUE, FALSE),
+(6, 9, 3, 'Nord Stage 3 Compact', 'Performance keyboard combining piano, organ, and synth engines for professional stage use.', 185000, 2, FALSE, TRUE),
+(7, 1, 1, 'Telecaster Player', 'Versatile electric guitar with twin single-coil pickups, known for its bright, twangy tone.', 28500, 19, TRUE, FALSE),
+(8, 4, 2, 'SPD-SX Pad', 'Compact sampling percussion pad for triggering samples and loops during live performance.', 39000, 15, FALSE, FALSE),
+(9, 1, 1, 'Jazz Bass Standard', 'Four-string electric base with dual single-coil pickups, offering punchy low-end and clarity.', 35800, 32, FALSE, FALSE),
+(10, 2, 1, 'SG Standard', 'Lightweight mahogany electric guitar with a thinner body and dual humbuckers for a thicker tone.', 48500, 26, FALSE, FALSE),
+(11, 6, 1, 'RG450DX', 'Fast-neck electric guitar designed for shredding, with high-output humbuckers.', 18900, 6, FALSE, FALSE),
+(12, 10, 1, 'GS Mini Mahogany', 'Compact acoustic guitar with solid mahogany top, great for travel and smaller players.', 42000, 12, FALSE, FALSE),
+(13, 4, 3, 'FP-30X Digital Piano', 'Portable digital piano with authentic hammer-action keys and onboard speakers.', 44500, 34, FALSE, FALSE),
+(14, 3, 1, 'FG800 Acoustic', 'Entry-level acoustic guitar with solid spruce top, popular among beginners.', 12800, 18, TRUE, FALSE),
+(15, 9, 3, 'Piano 5 73', '73-key stage piano with premium sampled grand piano sounds for professional performers.', 142000, 20, FALSE, FALSE),
+(16, 11, 3, 'B2 Digital Piano', 'Affordable digital piano with weighted keys, ideal for students and home use.', 24500, 20, FALSE, FALSE),
+(17, 12, 2, 'Export EXX725', 'Five-piece drum shell pack with hardware, designed for gigging drummers.', 52000, 8, FALSE, FALSE),
+(18, 8, 2, 'HCS Cymbal Pack', 'Starter cymbal set including hi-hats, crash, and ride, ideal for new drummers.', 11500, 11, FALSE, FALSE),
+(19, 3, 4, 'YAS-280 Alto Sax', 'Student-level alto saxophone with smooth key action and reliable intonation.', 89500, 6, FALSE, FALSE),
+(20, 5, 5, 'SM58 Vocal Mic', 'Industry-standard dynamic vocal microphone known for durability and clear sound.', 7800, 31, TRUE, FALSE),
+(21, 13, 5, 'AT2020 Condenser', 'Studio condenser microphone with wide dynamic range, ideal for recording vocals and instruments.', 9200, 9, FALSE, FALSE),
+(22, 14, 6, 'Katana 50 Gen 3', 'Versatile guitar amplifier with built-in effects and multiple amp tones.', 21500, 21, TRUE, FALSE),
+(23, 15, 6, 'EXL110 10-Pack', 'Nickel-wound electric guitar strings, 10-pack bundle for frequent restringing.', 3200, 35, FALSE, FALSE),
+(24, 16, 6, 'GS414B Guitar Stand', 'Sturdy folding guitar stand with padded supports to protect instrument finish.', 1850, 29, FALSE, FALSE),
+(25, 7, 6, 'MG15 Gold', 'Compact practice amplifier with classic Marshall tone shaping.', 9800, 11, FALSE, FALSE),
+(26, 12, 2, 'Roadshow 5pc', 'Affordable five-piece drum kit suited for beginners and small venues.', 38500, 33, FALSE, FALSE),
+(27, 1, 6, 'Mustang LT25', 'Compact practice amplifier with built-in digital effects and presets.', 14200, 6, FALSE, FALSE),
+(28, 17, 2, 'HD Dry Pack', 'Drumhead dampening pack for reducing overtones and shaping drum sound.', 4500, 23, FALSE, FALSE),
+(29, 5, 5, 'SRH840A Headphones', 'Closed-back studio monitor headphones with accurate, detailed sound reproduction.', 11200, 20, FALSE, FALSE),
+(30, 11, 3, 'MINilogue XD', 'Analog synthesizer with digital multi-engine, popular for sound design and live performance.', 68500, 7, FALSE, FALSE),
+(31, 6, 1, 'SR500E Bass', 'Lightweight electric bass guitar with active electronics for a modern tone.', 32800, 29, FALSE, FALSE),
+(32, 3, 3, 'AvantGrand N1X', 'Hybrid piano combining acoustic grand piano action with digital sound technology.', 215000, 1, FALSE, TRUE);
 
--- Seed item images (primary + additional shots for first 6 products as examples)
+-- Seed item images (primary image for all 32 items)
 INSERT INTO item_images (item_id, image_path, is_primary, sort_order) VALUES
-(1, 'images/guitar_strat.png', TRUE,  1),
-(2, 'images/drums_roland.png', TRUE,  1),
-(3, 'images/piano_yamaha.png', TRUE,  1),
-(4, 'images/guitar_strat.png', TRUE,  1),
-(5, 'images/drums_roland.png', TRUE,  1),
-(6, 'images/piano_yamaha.png', TRUE,  1);
+(1, 'images/products/Stratocaster Standard.jpg', TRUE, 1),
+(2, 'images/products/Roland TD-17KVX.jpg', TRUE, 1),
+(3, 'images/products/Yamaha P-125.jpg', TRUE, 1),
+(4, 'images/products/Les Paul Classic.jpg', TRUE, 1),
+(5, 'images/products/Cajon Box Kit.jpg', TRUE, 1),
+(6, 'images/products/Nord Stage 3 Compact.jpg', TRUE, 1),
+(7, 'images/products/Telecaster Player.jpg', TRUE, 1),
+(8, 'images/products/SPD-SX Pad.jpg', TRUE, 1),
+(9, 'images/products/Jazz Bass Standard.jpg', TRUE, 1),
+(10, 'images/products/SG Standard.jpg', TRUE, 1),
+(11, 'images/products/RG450DX.jpg', TRUE, 1),
+(12, 'images/products/GS Mini Mahogany.jpg', TRUE, 1),
+(13, 'images/products/FP-30X Digital Piano.jpg', TRUE, 1),
+(14, 'images/products/FG800 Acoustic.jpg', TRUE, 1),
+(15, 'images/products/Piano 5 73.jpg', TRUE, 1),
+(16, 'images/products/B2 Digital Piano.jpg', TRUE, 1),
+(17, 'images/products/Export EXX725.jpg', TRUE, 1),
+(18, 'images/products/HCS Cymbal Pack.jpg', TRUE, 1),
+(19, 'images/products/YAS-280 Alto Sax.jpg', TRUE, 1),
+(20, 'images/products/SM58 Vocal Mic.jpg', TRUE, 1),
+(21, 'images/products/AT2020 Condenser.jpg', TRUE, 1),
+(22, 'images/products/Katana 50 Gen 3.jpg', TRUE, 1),
+(23, 'images/products/EXL110 10-Pack.jpg', TRUE, 1),
+(24, 'images/products/GS414B Guitar Stand.jpg', TRUE, 1),
+(25, 'images/products/MG15 Gold.jpg', TRUE, 1),
+(26, 'images/products/Roadshow 5pc.jpg', TRUE, 1),
+(27, 'images/products/Mustang LT25.jpg', TRUE, 1),
+(28, 'images/products/HD Dry Pack.jpg', TRUE, 1),
+(29, 'images/products/SRH840A Headphones.jpg', TRUE, 1),
+(30, 'images/products/MINilogue XD.jpg', TRUE, 1),
+(31, 'images/products/SR500E Bass.jpg', TRUE, 1),
+(32, 'images/products/AvantGrand N1X.jpg', TRUE, 1);
 
--- Seed the 3 default orders into orderinfo and orderline
+-- Seed restock logs (replenishments & starting stocks)
+INSERT INTO restock_logs (id, item_id, supplier_id, quantity, cost_price, created_at) VALUES
+(1, 1, 1, 14, 19500, '2025-12-01 10:00:00'),
+(2, 2, 3, 6, 40800, '2025-12-01 10:00:00'),
+(3, 3, 2, 22, 17940, '2025-12-01 10:00:00'),
+(4, 4, 1, 4, 33000, '2025-12-01 10:00:00'),
+(5, 5, 2, 31, 4080, '2025-12-01 10:00:00'),
+(6, 6, 3, 3, 111000, '2025-12-01 10:00:00'),
+(7, 7, 1, 11, 17100, '2025-12-01 10:00:00'),
+(8, 8, 3, 9, 23400, '2025-12-01 10:00:00'),
+(9, 9, 1, 8, 21480, '2025-12-01 10:00:00'),
+(10, 10, 1, 5, 29100, '2025-12-01 10:00:00'),
+(11, 11, 1, 17, 11340, '2025-12-01 10:00:00'),
+(12, 12, 1, 10, 25200, '2025-12-01 10:00:00'),
+(13, 13, 3, 13, 26700, '2025-12-01 10:00:00'),
+(14, 14, 2, 26, 7680, '2025-12-01 10:00:00'),
+(15, 15, 3, 4, 85200, '2025-12-01 10:00:00'),
+(16, 16, 2, 15, 14700, '2025-12-01 10:00:00'),
+(17, 17, 2, 7, 31200, '2025-12-01 10:00:00'),
+(18, 18, 2, 19, 6900, '2025-12-01 10:00:00'),
+(19, 19, 2, 6, 53700, '2025-12-01 10:00:00'),
+(20, 20, 1, 42, 4680, '2025-12-01 10:00:00'),
+(21, 21, 1, 24, 5520, '2025-12-01 10:00:00'),
+(22, 22, 1, 12, 12900, '2025-12-01 10:00:00'),
+(23, 23, 1, 55, 1920, '2025-12-01 10:00:00'),
+(24, 24, 1, 38, 1110, '2025-12-01 10:00:00'),
+(25, 25, 1, 16, 5880, '2025-12-01 10:00:00'),
+(26, 26, 2, 11, 23100, '2025-12-01 10:00:00'),
+(27, 27, 1, 14, 8520, '2025-12-01 10:00:00'),
+(28, 28, 2, 27, 2700, '2025-12-01 10:00:00'),
+(29, 29, 1, 18, 6720, '2025-12-01 10:00:00'),
+(30, 30, 2, 5, 41100, '2025-12-01 10:00:00'),
+(31, 31, 1, 9, 19680, '2025-12-01 10:00:00'),
+(32, 32, 2, 2, 129000, '2025-12-01 10:00:00'),
+(33, 32, 2, 21, 129000, '2026-01-04 12:29:38'),
+(34, 6, 3, 18, 111000, '2026-01-04 18:29:38'),
+(35, 15, 3, 21, 85200, '2026-02-02 08:47:27'),
+(36, 19, 2, 17, 53700, '2026-02-02 21:47:27'),
+(37, 4, 1, 25, 33000, '2026-02-17 11:02:10'),
+(38, 30, 2, 18, 41100, '2026-03-06 16:12:01'),
+(39, 2, 3, 31, 40800, '2026-03-07 18:27:37'),
+(40, 17, 2, 16, 31200, '2026-03-22 06:45:10'),
+(41, 10, 1, 25, 29100, '2026-03-25 08:38:52'),
+(42, 9, 1, 32, 21480, '2026-04-11 02:01:00'),
+(43, 12, 1, 15, 25200, '2026-04-15 19:34:00'),
+(44, 7, 1, 20, 17100, '2026-04-26 02:36:41'),
+(45, 31, 1, 30, 19680, '2026-05-10 03:33:16'),
+(46, 26, 2, 33, 23100, '2026-05-25 14:44:43'),
+(47, 8, 3, 15, 23400, '2026-06-04 21:36:38'),
+(48, 29, 1, 19, 6720, '2026-06-05 21:07:05'),
+(49, 22, 1, 19, 12900, '2026-06-06 16:10:30'),
+(50, 16, 2, 18, 14700, '2026-06-20 23:27:43'),
+(51, 13, 3, 31, 26700, '2026-07-01 23:50:12');
+
+-- Seed orderinfo (142 orders over 6 months)
 INSERT INTO orderinfo (id, user_id, address_id, status_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed, date_shipped) VALUES
-(2401, 1, 1, 3, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-02 10:00:00', '2024-11-02 15:00:00'),
-(2402, 1, 1, 3, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-11-18 10:00:00', '2024-11-19 10:00:00'),
-(2403, 1, 1, 2, '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', 100.00, '2024-12-05 10:00:00', NULL);
+(2401, 2, 2, 2, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-01-04 22:29:38', NULL),
+(2402, 13, 13, 4, '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', 100, '2026-01-07 00:15:17', '2026-01-09 07:15:17'),
+(2403, 14, 14, 4, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-01-07 05:20:15', '2026-01-10 15:20:15'),
+(2404, 9, 9, 4, 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', 100, '2026-01-08 20:16:15', '2026-01-11 07:16:15'),
+(2405, 7, 7, 1, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-01-10 01:54:14', NULL),
+(2406, 11, 11, 4, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-01-13 03:58:41', '2026-01-14 12:58:41'),
+(2407, 10, 10, 4, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-01-15 01:52:04', '2026-01-18 09:52:04'),
+(2408, 11, 11, 1, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-01-15 03:43:09', NULL),
+(2409, 7, 7, 4, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-01-16 19:04:12', '2026-01-19 21:04:12'),
+(2410, 13, 13, 2, '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', 100, '2026-01-21 21:53:49', NULL),
+(2411, 2, 2, 1, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-01-22 20:01:02', NULL),
+(2412, 6, 6, 4, '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', 100, '2026-01-23 04:06:07', '2026-01-26 09:06:07'),
+(2413, 12, 12, 4, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-01-26 02:27:28', '2026-01-28 14:27:28'),
+(2414, 13, 13, 4, '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', 100, '2026-01-27 00:14:16', '2026-01-28 06:14:16'),
+(2415, 15, 15, 4, '1 Rizal St', 'Calamba City', 'Laguna', '4027', 100, '2026-01-29 04:20:10', '2026-01-31 05:20:10'),
+(2416, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-02-03 00:47:27', '2026-02-06 03:47:27'),
+(2417, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-02-05 05:07:35', '2026-02-08 14:07:35'),
+(2418, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-02-07 19:15:55', '2026-02-11 06:15:55'),
+(2419, 9, 9, 5, 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', 100, '2026-02-07 23:12:00', NULL),
+(2420, 11, 11, 3, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-02-08 01:40:51', '2026-02-10 04:40:51'),
+(2421, 14, 14, 3, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-02-09 04:46:38', '2026-02-11 12:46:38'),
+(2422, 12, 12, 4, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-02-15 03:23:42', '2026-02-18 08:23:42'),
+(2423, 12, 12, 5, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-02-15 04:19:58', NULL),
+(2424, 8, 8, 4, '22 Magsaysay Ave', 'Naga City', 'Camarines Sur', '4400', 100, '2026-02-15 04:35:53', '2026-02-18 07:35:53'),
+(2425, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-02-15 05:06:09', '2026-02-17 12:06:09'),
+(2426, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-02-17 23:02:10', '2026-02-21 03:02:10'),
+(2427, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-02-18 03:11:25', '2026-02-19 05:11:25'),
+(2428, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-02-20 22:39:30', '2026-02-23 00:39:30'),
+(2429, 11, 11, 5, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-02-23 21:36:01', NULL),
+(2430, 7, 7, 5, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-02-24 04:09:30', NULL),
+(2431, 4, 4, 4, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-02-26 20:22:15', '2026-02-27 21:22:15'),
+(2432, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-02-26 23:16:00', '2026-03-02 02:16:00'),
+(2433, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-02-28 05:50:39', '2026-03-02 07:50:39'),
+(2434, 10, 10, 1, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-03-05 00:18:03', NULL),
+(2435, 11, 11, 5, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-03-06 04:40:25', NULL),
+(2436, 10, 10, 4, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-03-06 17:01:05', '2026-03-09 02:01:05'),
+(2437, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-03-06 18:12:01', '2026-03-09 21:12:01'),
+(2438, 11, 11, 4, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-03-06 23:31:17', '2026-03-08 07:31:17'),
+(2439, 10, 10, 4, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-03-07 03:50:12', '2026-03-09 10:50:12'),
+(2440, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-03-08 04:27:37', '2026-03-09 14:27:37'),
+(2441, 8, 8, 4, '22 Magsaysay Ave', 'Naga City', 'Camarines Sur', '4400', 100, '2026-03-11 19:13:23', '2026-03-15 02:13:23'),
+(2442, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-03-12 01:31:53', '2026-03-15 06:31:53'),
+(2443, 13, 13, 5, '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', 100, '2026-03-15 23:47:03', NULL),
+(2444, 14, 14, 3, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-03-17 00:13:37', '2026-03-19 11:13:37'),
+(2445, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-03-17 17:31:22', '2026-03-19 21:31:22'),
+(2446, 12, 12, 2, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-03-18 05:40:39', NULL),
+(2447, 7, 7, 5, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-03-21 17:07:14', NULL),
+(2448, 6, 6, 4, '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', 100, '2026-03-22 19:28:29', '2026-03-23 21:28:29'),
+(2449, 2, 2, 3, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-03-22 20:45:10', '2026-03-24 08:45:10'),
+(2450, 14, 14, 4, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-03-23 04:59:23', '2026-03-26 12:59:23'),
+(2451, 14, 14, 1, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-03-26 04:38:52', NULL),
+(2452, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-03-28 18:36:26', '2026-03-31 23:36:26'),
+(2453, 10, 10, 5, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-03-28 22:35:11', NULL),
+(2454, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-04-02 21:52:23', '2026-04-03 22:52:23'),
+(2455, 2, 2, 1, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-04-03 23:10:06', NULL),
+(2456, 6, 6, 5, '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', 100, '2026-04-04 17:20:38', NULL),
+(2457, 12, 12, 1, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-04-04 20:06:01', NULL),
+(2458, 14, 14, 5, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-04-06 18:57:47', NULL),
+(2459, 11, 11, 4, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-04-07 03:54:29', '2026-04-10 09:54:29'),
+(2460, 12, 12, 4, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-04-11 05:23:11', '2026-04-14 12:23:11'),
+(2461, 14, 14, 4, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-04-11 20:26:04', '2026-04-14 06:26:04'),
+(2462, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-04-11 20:26:21', '2026-04-15 04:26:21'),
+(2463, 12, 12, 4, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-04-12 01:01:00', '2026-04-14 04:01:00'),
+(2464, 5, 5, 1, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-04-12 17:05:02', NULL),
+(2465, 13, 13, 4, '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', 100, '2026-04-13 18:15:59', '2026-04-14 21:15:59'),
+(2466, 10, 10, 4, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-04-14 01:38:33', '2026-04-15 09:38:33'),
+(2467, 6, 6, 4, '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', 100, '2026-04-15 21:04:57', '2026-04-18 22:04:57'),
+(2468, 4, 4, 5, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-04-15 23:38:42', NULL),
+(2469, 11, 11, 4, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-04-16 18:34:00', '2026-04-19 21:34:00'),
+(2470, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-04-17 01:38:31', '2026-04-18 10:38:31'),
+(2471, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-04-19 19:29:05', '2026-04-22 21:29:05'),
+(2472, 4, 4, 5, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-04-21 21:28:55', NULL),
+(2473, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-04-25 00:57:47', '2026-04-28 12:57:47'),
+(2474, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-04-25 18:08:02', '2026-04-28 05:08:02'),
+(2475, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-04-25 21:50:23', '2026-04-27 00:50:23'),
+(2476, 12, 12, 4, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-04-26 02:05:54', '2026-04-29 14:05:54'),
+(2477, 14, 14, 2, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-04-26 19:36:41', NULL),
+(2478, 11, 11, 4, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-04-28 18:55:25', '2026-05-01 19:55:25'),
+(2479, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-05-02 02:09:10', '2026-05-04 08:09:10'),
+(2480, 15, 15, 1, '1 Rizal St', 'Calamba City', 'Laguna', '4027', 100, '2026-05-02 22:28:42', NULL),
+(2481, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-05-03 19:09:51', '2026-05-05 23:09:51'),
+(2482, 9, 9, 4, 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', 100, '2026-05-03 23:53:25', '2026-05-07 10:53:25'),
+(2483, 6, 6, 3, '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', 100, '2026-05-04 03:09:01', '2026-05-05 09:09:01'),
+(2484, 4, 4, 3, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-05-05 19:12:03', '2026-05-06 20:12:03'),
+(2485, 9, 9, 5, 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', 100, '2026-05-06 01:52:48', NULL),
+(2486, 4, 4, 4, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-05-08 20:03:42', '2026-05-10 06:03:42'),
+(2487, 5, 5, 5, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-05-10 18:32:54', NULL),
+(2488, 7, 7, 4, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-05-10 20:33:16', '2026-05-14 06:33:16'),
+(2489, 14, 14, 4, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-05-10 21:03:40', '2026-05-12 04:03:40'),
+(2490, 7, 7, 4, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-05-10 23:25:13', '2026-05-14 10:25:13'),
+(2491, 9, 9, 3, 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', 100, '2026-05-12 01:13:13', '2026-05-15 07:13:13'),
+(2492, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-05-13 04:38:25', '2026-05-16 07:38:25'),
+(2493, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-05-13 04:43:13', '2026-05-16 14:43:13'),
+(2494, 4, 4, 4, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-05-15 03:01:08', '2026-05-17 12:01:08'),
+(2495, 4, 4, 5, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-05-16 17:56:24', NULL),
+(2496, 8, 8, 4, '22 Magsaysay Ave', 'Naga City', 'Camarines Sur', '4400', 100, '2026-05-16 20:04:14', '2026-05-19 05:04:14'),
+(2497, 8, 8, 4, '22 Magsaysay Ave', 'Naga City', 'Camarines Sur', '4400', 100, '2026-05-17 01:48:28', '2026-05-20 02:48:28'),
+(2498, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-05-17 02:07:09', '2026-05-18 09:07:09'),
+(2499, 12, 12, 4, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-05-17 02:26:27', '2026-05-20 06:26:27'),
+(2500, 14, 14, 4, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-05-18 01:48:14', '2026-05-21 07:48:14'),
+(2501, 10, 10, 4, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-05-24 22:15:36', '2026-05-28 07:15:36'),
+(2502, 4, 4, 5, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-05-26 02:44:43', NULL),
+(2503, 12, 12, 4, '12 Mabini Ave', 'Tanauan City', 'Batangas', '4232', 100, '2026-05-26 22:05:27', '2026-05-27 23:05:27'),
+(2504, 14, 14, 4, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-05-26 23:03:53', '2026-05-28 01:03:53'),
+(2505, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-05-27 22:36:48', '2026-05-30 02:36:48'),
+(2506, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-05-28 17:31:20', '2026-05-30 21:31:20'),
+(2507, 7, 7, 4, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-06-01 18:11:21', '2026-06-03 06:11:21'),
+(2508, 8, 8, 4, '22 Magsaysay Ave', 'Naga City', 'Camarines Sur', '4400', 100, '2026-06-02 01:23:43', '2026-06-03 07:23:43'),
+(2509, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-06-04 02:24:30', '2026-06-07 13:24:30'),
+(2510, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-06-05 03:36:38', '2026-06-08 04:36:38'),
+(2511, 7, 7, 4, 'Ponciano Reyes St', 'Davao City', 'Davao del Sur', '8000', 100, '2026-06-05 19:57:23', '2026-06-09 01:57:23'),
+(2512, 5, 5, 2, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-06-06 00:07:05', NULL),
+(2513, 10, 10, 5, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-06-06 01:37:38', NULL),
+(2514, 10, 10, 4, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-06-07 01:10:30', '2026-06-08 04:10:30'),
+(2515, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-06-07 03:39:52', '2026-06-08 10:39:52'),
+(2516, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-06-09 02:11:34', '2026-06-11 05:11:34'),
+(2517, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-06-10 04:10:48', '2026-06-13 11:10:48'),
+(2518, 10, 10, 5, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-06-14 05:16:16', NULL),
+(2519, 2, 2, 1, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-06-15 01:06:20', NULL),
+(2520, 10, 10, 2, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-06-18 23:02:13', NULL),
+(2521, 9, 9, 4, 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', 100, '2026-06-19 03:01:10', '2026-06-20 04:01:10'),
+(2522, 16, 16, 3, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-06-20 03:31:00', '2026-06-21 09:31:00'),
+(2523, 2, 2, 4, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-06-21 05:33:59', '2026-06-22 11:33:59'),
+(2524, 5, 5, 1, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-06-21 23:27:43', NULL),
+(2525, 4, 4, 3, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-06-22 01:11:27', '2026-06-25 08:11:27'),
+(2526, 3, 3, 4, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-06-22 18:21:04', '2026-06-24 21:21:04'),
+(2527, 10, 10, 4, 'Broadway St', 'San Juan City', 'Metro Manila', '1500', 100, '2026-06-22 22:50:08', '2026-06-26 06:50:08'),
+(2528, 8, 8, 4, '22 Magsaysay Ave', 'Naga City', 'Camarines Sur', '4400', 100, '2026-06-23 01:51:07', '2026-06-26 08:51:07'),
+(2529, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-06-23 02:45:13', '2026-06-24 09:45:13'),
+(2530, 6, 6, 4, '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', 100, '2026-06-23 22:02:20', '2026-06-24 23:02:20'),
+(2531, 6, 6, 4, '88 Sen. Gil Puyat Ave', 'Pasay City', 'Metro Manila', '1300', 100, '2026-06-24 01:33:33', '2026-06-27 06:33:33'),
+(2532, 4, 4, 1, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-06-26 04:11:53', NULL),
+(2533, 15, 15, 4, '1 Rizal St', 'Calamba City', 'Laguna', '4027', 100, '2026-06-26 17:17:26', '2026-06-28 18:17:26'),
+(2534, 5, 5, 4, '12 Shaw Blvd', 'Pasig City', 'Metro Manila', '1600', 100, '2026-06-28 02:28:38', '2026-06-29 10:28:38'),
+(2535, 3, 3, 5, '45 Katipunan Ave', 'Quezon City', 'Metro Manila', '1108', 100, '2026-06-28 19:04:28', NULL),
+(2536, 14, 14, 3, 'Aguinaldo Shrine', 'Kawit', 'Cavite', '4104', 100, '2026-06-29 01:34:11', '2026-06-30 05:34:11'),
+(2537, 4, 4, 4, '78 Ayala Ave', 'Makati City', 'Metro Manila', '1226', 100, '2026-07-01 19:49:13', '2026-07-05 01:49:13'),
+(2538, 13, 13, 4, '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', 100, '2026-07-02 03:50:12', '2026-07-04 05:50:12'),
+(2539, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-07-03 00:38:32', '2026-07-04 06:38:32'),
+(2540, 9, 9, 5, 'Pacquiao St', 'General Santos City', 'South Cotabato', '9500', 100, '2026-07-04 01:47:16', NULL),
+(2541, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-07-04 22:34:25', '2026-07-08 02:34:25'),
+(2542, 11, 11, 4, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-07-04 23:20:49', '2026-07-07 01:20:49');
 
+-- Seed orderline
 INSERT INTO orderline (orderinfo_id, item_id, cost_price, quantity, sell_price) VALUES
-(2401, 1, 19500.00, 1, 32500.00),
-(2402, 2, 40800.00, 1, 68000.00),
-(2403, 3, 17940.00, 1, 29900.00);
+(2401, 1, 19500, 1, 32500),
+(2402, 6, 111000, 1, 185000),
+(2402, 23, 1920, 1, 3200),
+(2403, 12, 25200, 1, 42000),
+(2403, 19, 53700, 1, 89500),
+(2404, 12, 25200, 1, 42000),
+(2404, 32, 129000, 1, 215000),
+(2404, 2, 40800, 1, 68000),
+(2405, 19, 53700, 1, 89500),
+(2406, 22, 12900, 2, 21500),
+(2407, 7, 17100, 1, 28500),
+(2407, 29, 6720, 1, 11200),
+(2408, 30, 41100, 1, 68500),
+(2409, 29, 6720, 2, 11200),
+(2410, 26, 23100, 1, 38500),
+(2411, 29, 6720, 1, 11200),
+(2412, 7, 17100, 1, 28500),
+(2412, 26, 23100, 1, 38500),
+(2413, 11, 11340, 1, 18900),
+(2413, 17, 31200, 1, 52000),
+(2414, 28, 2700, 1, 4500),
+(2414, 17, 31200, 1, 52000),
+(2415, 19, 53700, 1, 89500),
+(2415, 15, 85200, 1, 142000),
+(2415, 7, 17100, 1, 28500),
+(2416, 19, 53700, 1, 89500),
+(2416, 21, 5520, 1, 9200),
+(2417, 23, 1920, 1, 3200),
+(2418, 22, 12900, 1, 21500),
+(2419, 16, 14700, 1, 24500),
+(2419, 32, 129000, 1, 215000),
+(2419, 24, 1110, 1, 1850),
+(2420, 11, 11340, 1, 18900),
+(2421, 6, 111000, 1, 185000),
+(2422, 2, 40800, 1, 68000),
+(2423, 26, 23100, 1, 38500),
+(2423, 11, 11340, 1, 18900),
+(2423, 14, 7680, 2, 12800),
+(2424, 25, 5880, 1, 9800),
+(2425, 4, 33000, 1, 55000),
+(2425, 20, 4680, 1, 7800),
+(2426, 31, 19680, 1, 32800),
+(2426, 32, 129000, 1, 215000),
+(2427, 19, 53700, 2, 89500),
+(2427, 10, 29100, 1, 48500),
+(2428, 21, 5520, 1, 9200),
+(2428, 7, 17100, 1, 28500),
+(2429, 16, 14700, 1, 24500),
+(2429, 21, 5520, 1, 9200),
+(2430, 16, 14700, 1, 24500),
+(2431, 6, 111000, 1, 185000),
+(2432, 21, 5520, 1, 9200),
+(2432, 9, 21480, 1, 35800),
+(2432, 12, 25200, 1, 42000),
+(2433, 23, 1920, 1, 3200),
+(2433, 20, 4680, 1, 7800),
+(2434, 20, 4680, 1, 7800),
+(2434, 24, 1110, 1, 1850),
+(2435, 26, 23100, 1, 38500),
+(2435, 18, 6900, 1, 11500),
+(2436, 30, 41100, 1, 68500),
+(2437, 30, 41100, 1, 68500),
+(2437, 7, 17100, 1, 28500),
+(2437, 13, 26700, 1, 44500),
+(2438, 16, 14700, 2, 24500),
+(2438, 31, 19680, 2, 32800),
+(2438, 27, 8520, 2, 14200),
+(2439, 30, 41100, 2, 68500),
+(2439, 29, 6720, 1, 11200),
+(2439, 2, 40800, 2, 68000),
+(2440, 17, 31200, 1, 52000),
+(2441, 11, 11340, 1, 18900),
+(2442, 11, 11340, 1, 18900),
+(2443, 19, 53700, 1, 89500),
+(2443, 2, 40800, 1, 68000),
+(2444, 14, 7680, 1, 12800),
+(2445, 4, 33000, 1, 55000),
+(2445, 25, 5880, 1, 9800),
+(2446, 11, 11340, 1, 18900),
+(2446, 32, 129000, 1, 215000),
+(2446, 19, 53700, 1, 89500),
+(2447, 32, 129000, 1, 215000),
+(2448, 17, 31200, 1, 52000),
+(2448, 9, 21480, 2, 35800),
+(2448, 27, 8520, 1, 14200),
+(2449, 19, 53700, 1, 89500),
+(2449, 3, 17940, 1, 29900),
+(2450, 10, 29100, 1, 48500),
+(2450, 16, 14700, 2, 24500),
+(2450, 19, 53700, 2, 89500),
+(2451, 9, 21480, 1, 35800),
+(2452, 27, 8520, 1, 14200),
+(2452, 16, 14700, 1, 24500),
+(2453, 31, 19680, 1, 32800),
+(2453, 20, 4680, 1, 7800),
+(2453, 29, 6720, 1, 11200),
+(2454, 17, 31200, 1, 52000),
+(2454, 6, 111000, 1, 185000),
+(2455, 21, 5520, 1, 9200),
+(2455, 17, 31200, 1, 52000),
+(2456, 7, 17100, 1, 28500),
+(2456, 19, 53700, 1, 89500),
+(2457, 17, 31200, 1, 52000),
+(2457, 24, 1110, 1, 1850),
+(2457, 21, 5520, 2, 9200),
+(2458, 32, 129000, 1, 215000),
+(2458, 6, 111000, 1, 185000),
+(2458, 27, 8520, 1, 14200),
+(2459, 8, 23400, 1, 39000),
+(2460, 29, 6720, 2, 11200),
+(2461, 16, 14700, 1, 24500),
+(2462, 9, 21480, 1, 35800),
+(2462, 21, 5520, 1, 9200),
+(2462, 12, 25200, 2, 42000),
+(2463, 13, 26700, 1, 44500),
+(2463, 17, 31200, 2, 52000),
+(2464, 21, 5520, 1, 9200),
+(2464, 18, 6900, 1, 11500),
+(2464, 26, 23100, 1, 38500),
+(2465, 5, 4080, 1, 6800),
+(2465, 21, 5520, 1, 9200),
+(2465, 16, 14700, 1, 24500),
+(2466, 11, 11340, 1, 18900),
+(2466, 8, 23400, 2, 39000),
+(2466, 31, 19680, 1, 32800),
+(2467, 30, 41100, 1, 68500),
+(2467, 25, 5880, 1, 9800),
+(2467, 18, 6900, 1, 11500),
+(2468, 12, 25200, 2, 42000),
+(2468, 21, 5520, 1, 9200),
+(2469, 13, 26700, 1, 44500),
+(2469, 17, 31200, 1, 52000),
+(2470, 7, 17100, 1, 28500),
+(2470, 8, 23400, 1, 39000),
+(2471, 3, 17940, 1, 29900),
+(2471, 23, 1920, 1, 3200),
+(2472, 24, 1110, 1, 1850),
+(2472, 20, 4680, 1, 7800),
+(2473, 26, 23100, 1, 38500),
+(2473, 28, 2700, 1, 4500),
+(2473, 5, 4080, 1, 6800),
+(2474, 29, 6720, 1, 11200),
+(2475, 27, 8520, 1, 14200),
+(2475, 22, 12900, 1, 21500),
+(2475, 4, 33000, 2, 55000),
+(2476, 30, 41100, 2, 68500),
+(2476, 7, 17100, 1, 28500),
+(2477, 2, 40800, 2, 68000),
+(2477, 7, 17100, 2, 28500),
+(2477, 25, 5880, 1, 9800),
+(2478, 19, 53700, 1, 89500),
+(2478, 10, 29100, 1, 48500),
+(2478, 2, 40800, 1, 68000),
+(2479, 19, 53700, 1, 89500),
+(2479, 29, 6720, 1, 11200),
+(2480, 3, 17940, 1, 29900),
+(2480, 20, 4680, 1, 7800),
+(2480, 19, 53700, 1, 89500),
+(2481, 24, 1110, 2, 1850),
+(2481, 5, 4080, 1, 6800),
+(2482, 23, 1920, 1, 3200),
+(2483, 21, 5520, 1, 9200),
+(2483, 29, 6720, 1, 11200),
+(2483, 7, 17100, 1, 28500),
+(2484, 19, 53700, 1, 89500),
+(2485, 12, 25200, 1, 42000),
+(2486, 3, 17940, 1, 29900),
+(2486, 26, 23100, 1, 38500),
+(2487, 23, 1920, 2, 3200),
+(2487, 30, 41100, 2, 68500),
+(2487, 31, 19680, 1, 32800),
+(2488, 24, 1110, 1, 1850),
+(2488, 9, 21480, 1, 35800),
+(2488, 4, 33000, 1, 55000),
+(2489, 30, 41100, 1, 68500),
+(2490, 6, 111000, 1, 185000),
+(2490, 3, 17940, 1, 29900),
+(2491, 17, 31200, 1, 52000),
+(2491, 1, 19500, 1, 32500),
+(2491, 25, 5880, 1, 9800),
+(2492, 13, 26700, 1, 44500),
+(2493, 2, 40800, 1, 68000),
+(2493, 15, 85200, 1, 142000),
+(2493, 31, 19680, 2, 32800),
+(2494, 18, 6900, 1, 11500),
+(2494, 22, 12900, 1, 21500),
+(2495, 11, 11340, 2, 18900),
+(2495, 14, 7680, 1, 12800),
+(2496, 29, 6720, 1, 11200),
+(2496, 19, 53700, 1, 89500),
+(2497, 3, 17940, 1, 29900),
+(2498, 3, 17940, 1, 29900),
+(2498, 17, 31200, 1, 52000),
+(2499, 22, 12900, 1, 21500),
+(2499, 5, 4080, 1, 6800),
+(2500, 8, 23400, 1, 39000),
+(2500, 3, 17940, 1, 29900),
+(2501, 26, 23100, 1, 38500),
+(2501, 3, 17940, 1, 29900),
+(2501, 2, 40800, 1, 68000),
+(2502, 6, 111000, 1, 185000),
+(2502, 24, 1110, 2, 1850),
+(2503, 30, 41100, 1, 68500),
+(2503, 12, 25200, 1, 42000),
+(2503, 21, 5520, 1, 9200),
+(2504, 6, 111000, 1, 185000),
+(2504, 32, 129000, 1, 215000),
+(2505, 22, 12900, 2, 21500),
+(2505, 1, 19500, 1, 32500),
+(2505, 7, 17100, 1, 28500),
+(2506, 23, 1920, 1, 3200),
+(2507, 11, 11340, 1, 18900),
+(2507, 3, 17940, 1, 29900),
+(2507, 17, 31200, 2, 52000),
+(2508, 29, 6720, 1, 11200),
+(2509, 12, 25200, 1, 42000),
+(2509, 8, 23400, 1, 39000),
+(2509, 3, 17940, 1, 29900),
+(2510, 14, 7680, 1, 12800),
+(2510, 16, 14700, 1, 24500),
+(2510, 5, 4080, 1, 6800),
+(2511, 32, 129000, 1, 215000),
+(2511, 23, 1920, 2, 3200),
+(2511, 29, 6720, 2, 11200),
+(2512, 9, 21480, 1, 35800),
+(2512, 14, 7680, 2, 12800),
+(2512, 23, 1920, 1, 3200),
+(2513, 22, 12900, 1, 21500),
+(2514, 12, 25200, 1, 42000),
+(2514, 21, 5520, 1, 9200),
+(2515, 17, 31200, 1, 52000),
+(2516, 13, 26700, 1, 44500),
+(2516, 18, 6900, 1, 11500),
+(2517, 20, 4680, 2, 7800),
+(2518, 27, 8520, 1, 14200),
+(2518, 9, 21480, 1, 35800),
+(2519, 32, 129000, 1, 215000),
+(2520, 13, 26700, 1, 44500),
+(2520, 11, 11340, 1, 18900),
+(2520, 31, 19680, 2, 32800),
+(2521, 23, 1920, 1, 3200),
+(2521, 32, 129000, 1, 215000),
+(2521, 20, 4680, 2, 7800),
+(2522, 29, 6720, 2, 11200),
+(2522, 23, 1920, 1, 3200),
+(2523, 13, 26700, 2, 44500),
+(2523, 16, 14700, 1, 24500),
+(2523, 3, 17940, 2, 29900),
+(2524, 28, 2700, 1, 4500),
+(2524, 23, 1920, 2, 3200),
+(2525, 10, 29100, 1, 48500),
+(2526, 4, 33000, 1, 55000),
+(2526, 26, 23100, 1, 38500),
+(2526, 18, 6900, 2, 11500),
+(2527, 5, 4080, 1, 6800),
+(2527, 30, 41100, 1, 68500),
+(2528, 2, 40800, 1, 68000),
+(2528, 23, 1920, 2, 3200),
+(2529, 23, 1920, 1, 3200),
+(2529, 20, 4680, 1, 7800),
+(2530, 12, 25200, 1, 42000),
+(2531, 8, 23400, 1, 39000),
+(2531, 15, 85200, 1, 142000),
+(2531, 30, 41100, 1, 68500),
+(2532, 8, 23400, 1, 39000),
+(2533, 22, 12900, 1, 21500),
+(2534, 15, 85200, 1, 142000),
+(2534, 27, 8520, 1, 14200),
+(2535, 6, 111000, 1, 185000),
+(2535, 13, 26700, 1, 44500),
+(2535, 30, 41100, 1, 68500),
+(2536, 23, 1920, 2, 3200),
+(2536, 28, 2700, 1, 4500),
+(2536, 5, 4080, 1, 6800),
+(2537, 13, 26700, 1, 44500),
+(2538, 32, 129000, 2, 215000),
+(2538, 12, 25200, 1, 42000),
+(2539, 15, 85200, 1, 142000),
+(2540, 26, 23100, 2, 38500),
+(2541, 8, 23400, 1, 39000),
+(2541, 14, 7680, 1, 12800),
+(2541, 30, 41100, 1, 68500),
+(2542, 18, 6900, 1, 11500),
+(2542, 16, 14700, 1, 24500),
+(2542, 21, 5520, 1, 9200);
 
--- Seed payments for the 3 default orders
+-- Seed payments
 INSERT INTO payments (orderinfo_id, payment_method, amount_paid, payment_status, transaction_ref, paid_at) VALUES
-(2401, 'gcash', 32600.00, 'paid', 'GC-20241102-001', '2024-11-02 09:55:00'),
-(2402, 'cod', 68100.00, 'paid', NULL, '2024-11-19 10:00:00'),
-(2403, 'card', 30000.00, 'pending', 'CARD-20241205-003', NULL);
+(2401, 'card', 32600, 'paid', 'CARD-20260104-2401', '2026-01-04 22:29:38'),
+(2402, 'gcash', 188300, 'paid', 'GC-20260107-2402', '2026-01-07 00:15:17'),
+(2403, 'gcash', 131600, 'paid', 'GC-20260107-2403', '2026-01-07 05:20:15'),
+(2404, 'cod', 325100, 'paid', NULL, '2026-01-10 20:16:15'),
+(2405, 'cod', 89600, 'pending', NULL, NULL),
+(2406, 'gcash', 43100, 'paid', 'GC-20260113-2406', '2026-01-13 03:58:41'),
+(2407, 'gcash', 39800, 'paid', 'GC-20260115-2407', '2026-01-15 01:52:04'),
+(2408, 'bank_transfer', 68600, 'paid', 'BT-20260115-2408', '2026-01-15 03:43:09'),
+(2409, 'cod', 22500, 'paid', NULL, '2026-01-18 19:04:12'),
+(2410, 'card', 38600, 'paid', 'CARD-20260121-2410', '2026-01-21 21:53:49'),
+(2411, 'gcash', 11300, 'paid', 'GC-20260122-2411', '2026-01-22 20:01:02'),
+(2412, 'cod', 67100, 'paid', NULL, '2026-01-25 04:06:07'),
+(2413, 'cod', 71000, 'paid', NULL, '2026-01-28 02:27:28'),
+(2414, 'cod', 56600, 'paid', NULL, '2026-01-29 00:14:16'),
+(2415, 'cod', 260100, 'paid', NULL, '2026-01-31 04:20:10'),
+(2416, 'cod', 98800, 'paid', NULL, '2026-02-05 00:47:27'),
+(2417, 'gcash', 3300, 'paid', 'GC-20260205-2417', '2026-02-05 05:07:35'),
+(2418, 'cod', 21600, 'paid', NULL, '2026-02-09 19:15:55'),
+(2419, 'bank_transfer', 241450, 'refunded', 'BT-20260207-2419', '2026-02-08 23:12:00'),
+(2420, 'card', 19000, 'paid', 'CARD-20260208-2420', '2026-02-08 01:40:51'),
+(2421, 'cod', 185100, 'pending', NULL, NULL),
+(2422, 'card', 68100, 'paid', 'CARD-20260215-2422', '2026-02-15 03:23:42'),
+(2423, 'gcash', 83100, 'refunded', 'GC-20260215-2423', '2026-02-16 04:19:58'),
+(2424, 'cod', 9900, 'paid', NULL, '2026-02-17 04:35:53'),
+(2425, 'cod', 62900, 'paid', NULL, '2026-02-17 05:06:09'),
+(2426, 'cod', 247900, 'paid', NULL, '2026-02-19 23:02:10'),
+(2427, 'bank_transfer', 227600, 'paid', 'BT-20260218-2427', '2026-02-18 03:11:25'),
+(2428, 'cod', 37800, 'paid', NULL, '2026-02-22 22:39:30'),
+(2429, 'bank_transfer', 33800, 'refunded', 'BT-20260223-2429', '2026-02-24 21:36:01'),
+(2430, 'cod', 24600, 'failed', NULL, NULL),
+(2431, 'card', 185100, 'paid', 'CARD-20260226-2431', '2026-02-26 20:22:15'),
+(2432, 'card', 87100, 'paid', 'CARD-20260226-2432', '2026-02-26 23:16:00'),
+(2433, 'card', 11100, 'paid', 'CARD-20260228-2433', '2026-02-28 05:50:39'),
+(2434, 'card', 9750, 'paid', 'CARD-20260305-2434', '2026-03-05 00:18:03'),
+(2435, 'card', 50100, 'refunded', 'CARD-20260306-2435', '2026-03-07 04:40:25'),
+(2436, 'gcash', 68600, 'paid', 'GC-20260306-2436', '2026-03-06 17:01:05'),
+(2437, 'gcash', 141600, 'paid', 'GC-20260306-2437', '2026-03-06 18:12:01'),
+(2438, 'card', 143100, 'paid', 'CARD-20260306-2438', '2026-03-06 23:31:17'),
+(2439, 'bank_transfer', 284300, 'paid', 'BT-20260307-2439', '2026-03-07 03:50:12'),
+(2440, 'gcash', 52100, 'paid', 'GC-20260308-2440', '2026-03-08 04:27:37'),
+(2441, 'gcash', 19000, 'paid', 'GC-20260311-2441', '2026-03-11 19:13:23'),
+(2442, 'gcash', 19000, 'paid', 'GC-20260312-2442', '2026-03-12 01:31:53'),
+(2443, 'card', 157600, 'refunded', 'CARD-20260315-2443', '2026-03-16 23:47:03'),
+(2444, 'gcash', 12900, 'paid', 'GC-20260317-2444', '2026-03-17 00:13:37'),
+(2445, 'card', 64900, 'paid', 'CARD-20260317-2445', '2026-03-17 17:31:22'),
+(2446, 'card', 323500, 'paid', 'CARD-20260318-2446', '2026-03-18 05:40:39'),
+(2447, 'bank_transfer', 215100, 'refunded', 'BT-20260321-2447', '2026-03-22 17:07:14'),
+(2448, 'card', 137900, 'paid', 'CARD-20260322-2448', '2026-03-22 19:28:29'),
+(2449, 'cod', 119500, 'pending', NULL, NULL),
+(2450, 'bank_transfer', 276600, 'paid', 'BT-20260323-2450', '2026-03-23 04:59:23'),
+(2451, 'cod', 35900, 'pending', NULL, NULL),
+(2452, 'cod', 38800, 'paid', NULL, '2026-03-30 18:36:26'),
+(2453, 'gcash', 51900, 'refunded', 'GC-20260328-2453', '2026-03-29 22:35:11'),
+(2454, 'bank_transfer', 237100, 'paid', 'BT-20260402-2454', '2026-04-02 21:52:23'),
+(2455, 'cod', 61300, 'pending', NULL, NULL),
+(2456, 'gcash', 118100, 'refunded', 'GC-20260404-2456', '2026-04-05 17:20:38'),
+(2457, 'cod', 72350, 'pending', NULL, NULL),
+(2458, 'bank_transfer', 414300, 'refunded', 'BT-20260406-2458', '2026-04-07 18:57:47'),
+(2459, 'card', 39100, 'paid', 'CARD-20260407-2459', '2026-04-07 03:54:29'),
+(2460, 'card', 22500, 'paid', 'CARD-20260411-2460', '2026-04-11 05:23:11'),
+(2461, 'gcash', 24600, 'paid', 'GC-20260411-2461', '2026-04-11 20:26:04'),
+(2462, 'card', 129100, 'paid', 'CARD-20260411-2462', '2026-04-11 20:26:21'),
+(2463, 'cod', 148600, 'paid', NULL, '2026-04-14 01:01:00'),
+(2464, 'gcash', 59300, 'paid', 'GC-20260412-2464', '2026-04-12 17:05:02'),
+(2465, 'gcash', 40600, 'paid', 'GC-20260413-2465', '2026-04-13 18:15:59'),
+(2466, 'bank_transfer', 129800, 'paid', 'BT-20260414-2466', '2026-04-14 01:38:33'),
+(2467, 'cod', 89900, 'paid', NULL, '2026-04-17 21:04:57'),
+(2468, 'gcash', 93300, 'refunded', 'GC-20260415-2468', '2026-04-16 23:38:42'),
+(2469, 'card', 96600, 'paid', 'CARD-20260416-2469', '2026-04-16 18:34:00'),
+(2470, 'card', 67600, 'paid', 'CARD-20260417-2470', '2026-04-17 01:38:31'),
+(2471, 'cod', 33200, 'paid', NULL, '2026-04-21 19:29:05'),
+(2472, 'bank_transfer', 9750, 'refunded', 'BT-20260421-2472', '2026-04-22 21:28:55'),
+(2473, 'gcash', 49900, 'paid', 'GC-20260425-2473', '2026-04-25 00:57:47'),
+(2474, 'gcash', 11300, 'paid', 'GC-20260425-2474', '2026-04-25 18:08:02'),
+(2475, 'gcash', 145800, 'paid', 'GC-20260425-2475', '2026-04-25 21:50:23'),
+(2476, 'card', 165600, 'paid', 'CARD-20260426-2476', '2026-04-26 02:05:54'),
+(2477, 'bank_transfer', 202900, 'paid', 'BT-20260426-2477', '2026-04-26 19:36:41'),
+(2478, 'bank_transfer', 206100, 'paid', 'BT-20260428-2478', '2026-04-28 18:55:25'),
+(2479, 'card', 100800, 'paid', 'CARD-20260502-2479', '2026-05-02 02:09:10'),
+(2480, 'cod', 127300, 'pending', NULL, NULL),
+(2481, 'gcash', 10600, 'paid', 'GC-20260503-2481', '2026-05-03 19:09:51'),
+(2482, 'card', 3300, 'paid', 'CARD-20260503-2482', '2026-05-03 23:53:25'),
+(2483, 'bank_transfer', 49000, 'paid', 'BT-20260504-2483', '2026-05-04 03:09:01'),
+(2484, 'card', 89600, 'paid', 'CARD-20260505-2484', '2026-05-05 19:12:03'),
+(2485, 'cod', 42100, 'failed', NULL, NULL),
+(2486, 'bank_transfer', 68500, 'paid', 'BT-20260508-2486', '2026-05-08 20:03:42'),
+(2487, 'cod', 176300, 'failed', NULL, NULL),
+(2488, 'card', 92750, 'paid', 'CARD-20260510-2488', '2026-05-10 20:33:16'),
+(2489, 'card', 68600, 'paid', 'CARD-20260510-2489', '2026-05-10 21:03:40'),
+(2490, 'gcash', 215000, 'paid', 'GC-20260510-2490', '2026-05-10 23:25:13'),
+(2491, 'cod', 94400, 'pending', NULL, NULL),
+(2492, 'gcash', 44600, 'paid', 'GC-20260513-2492', '2026-05-13 04:38:25'),
+(2493, 'card', 275700, 'paid', 'CARD-20260513-2493', '2026-05-13 04:43:13'),
+(2494, 'bank_transfer', 33100, 'paid', 'BT-20260515-2494', '2026-05-15 03:01:08'),
+(2495, 'gcash', 50700, 'refunded', 'GC-20260516-2495', '2026-05-17 17:56:24'),
+(2496, 'bank_transfer', 100800, 'paid', 'BT-20260516-2496', '2026-05-16 20:04:14'),
+(2497, 'bank_transfer', 30000, 'paid', 'BT-20260517-2497', '2026-05-17 01:48:28'),
+(2498, 'gcash', 82000, 'paid', 'GC-20260517-2498', '2026-05-17 02:07:09'),
+(2499, 'card', 28400, 'paid', 'CARD-20260517-2499', '2026-05-17 02:26:27'),
+(2500, 'gcash', 69000, 'paid', 'GC-20260518-2500', '2026-05-18 01:48:14'),
+(2501, 'bank_transfer', 136500, 'paid', 'BT-20260524-2501', '2026-05-24 22:15:36'),
+(2502, 'gcash', 188800, 'refunded', 'GC-20260526-2502', '2026-05-27 02:44:43'),
+(2503, 'gcash', 119800, 'paid', 'GC-20260526-2503', '2026-05-26 22:05:27'),
+(2504, 'gcash', 400100, 'paid', 'GC-20260526-2504', '2026-05-26 23:03:53'),
+(2505, 'card', 104100, 'paid', 'CARD-20260527-2505', '2026-05-27 22:36:48'),
+(2506, 'cod', 3300, 'paid', NULL, '2026-05-30 17:31:20'),
+(2507, 'gcash', 152900, 'paid', 'GC-20260601-2507', '2026-06-01 18:11:21'),
+(2508, 'cod', 11300, 'paid', NULL, '2026-06-04 01:23:43'),
+(2509, 'card', 111000, 'paid', 'CARD-20260604-2509', '2026-06-04 02:24:30'),
+(2510, 'gcash', 44200, 'paid', 'GC-20260605-2510', '2026-06-05 03:36:38'),
+(2511, 'gcash', 243900, 'paid', 'GC-20260605-2511', '2026-06-05 19:57:23'),
+(2512, 'cod', 64700, 'pending', NULL, NULL),
+(2513, 'cod', 21600, 'failed', NULL, NULL),
+(2514, 'bank_transfer', 51300, 'paid', 'BT-20260607-2514', '2026-06-07 01:10:30'),
+(2515, 'gcash', 52100, 'paid', 'GC-20260607-2515', '2026-06-07 03:39:52'),
+(2516, 'cod', 56100, 'paid', NULL, '2026-06-11 02:11:34'),
+(2517, 'card', 15700, 'paid', 'CARD-20260610-2517', '2026-06-10 04:10:48'),
+(2518, 'gcash', 50100, 'refunded', 'GC-20260614-2518', '2026-06-15 05:16:16'),
+(2519, 'cod', 215100, 'pending', NULL, NULL),
+(2520, 'gcash', 129100, 'paid', 'GC-20260618-2520', '2026-06-18 23:02:13'),
+(2521, 'gcash', 233900, 'paid', 'GC-20260619-2521', '2026-06-19 03:01:10'),
+(2522, 'cod', 25700, 'pending', NULL, NULL),
+(2523, 'gcash', 173400, 'paid', 'GC-20260621-2523', '2026-06-21 05:33:59'),
+(2524, 'gcash', 11000, 'paid', 'GC-20260621-2524', '2026-06-21 23:27:43'),
+(2525, 'bank_transfer', 48600, 'paid', 'BT-20260622-2525', '2026-06-22 01:11:27'),
+(2526, 'cod', 116600, 'paid', NULL, '2026-06-24 18:21:04'),
+(2527, 'cod', 75400, 'paid', NULL, '2026-06-24 22:50:08'),
+(2528, 'cod', 74500, 'paid', NULL, '2026-06-25 01:51:07'),
+(2529, 'cod', 11100, 'paid', NULL, '2026-06-25 02:45:13'),
+(2530, 'card', 42100, 'paid', 'CARD-20260623-2530', '2026-06-23 22:02:20'),
+(2531, 'gcash', 249600, 'paid', 'GC-20260624-2531', '2026-06-24 01:33:33'),
+(2532, 'card', 39100, 'paid', 'CARD-20260626-2532', '2026-06-26 04:11:53'),
+(2533, 'card', 21600, 'paid', 'CARD-20260626-2533', '2026-06-26 17:17:26'),
+(2534, 'cod', 156300, 'paid', NULL, '2026-06-30 02:28:38'),
+(2535, 'bank_transfer', 298100, 'refunded', 'BT-20260628-2535', '2026-06-29 19:04:28'),
+(2536, 'cod', 17800, 'pending', NULL, NULL),
+(2537, 'bank_transfer', 44600, 'paid', 'BT-20260701-2537', '2026-07-01 19:49:13'),
+(2538, 'gcash', 472100, 'paid', 'GC-20260702-2538', '2026-07-02 03:50:12'),
+(2539, 'bank_transfer', 142100, 'paid', 'BT-20260703-2539', '2026-07-03 00:38:32'),
+(2540, 'bank_transfer', 77100, 'refunded', 'BT-20260704-2540', '2026-07-05 01:47:16'),
+(2541, 'cod', 120400, 'paid', NULL, '2026-07-06 22:34:25'),
+(2542, 'card', 45300, 'paid', 'CARD-20260704-2542', '2026-07-04 23:20:49');
 
--- Seed default featured and carousel items
-UPDATE item SET is_carousel = TRUE WHERE id IN (1, 4, 6);
-UPDATE item SET is_featured = TRUE WHERE id IN (1, 2, 3, 5);
+-- Seed reviews
+INSERT INTO review (id, user_id, item_id, rating, comment, created_at) VALUES
+(1, 2, 1, 5, 'Unbelievable sound quality! Best Stratocaster I''ve ever owned.', CURRENT_TIMESTAMP),
+(2, 3, 2, 5, 'Very realistic mesh drumheads. Roland did it again.', CURRENT_TIMESTAMP),
+(3, 4, 3, 4, 'Great digital piano for beginners, key feel is very nice.', CURRENT_TIMESTAMP),
+(4, 5, 4, 5, 'Absolute beast of a guitar, warm tones and endless sustain.', CURRENT_TIMESTAMP),
+(5, 6, 5, 4, 'Surprisingly good bass tone from a cajon. Solid construct.', CURRENT_TIMESTAMP),
+(6, 7, 6, 5, 'Nord Stage 3 is the ultimate stage keyboard. Expensive but worth it.', CURRENT_TIMESTAMP),
+(7, 8, 7, 4, 'Bright twangy sound, exactly what you expect from a Tele.', CURRENT_TIMESTAMP),
+(8, 9, 8, 5, 'Amazing sampler for live performance, very intuitive interface.', CURRENT_TIMESTAMP),
+(9, 10, 9, 5, 'Classic punchy bass. A must-have for bassists.', CURRENT_TIMESTAMP),
+(10, 11, 10, 4, 'Solid mahogany construction. SG rocks!', CURRENT_TIMESTAMP),
+(11, 12, 11, 5, 'Great guitar for metal! Fast neck and heavy pickups.', CURRENT_TIMESTAMP),
+(12, 13, 12, 5, 'Perfect travel acoustic guitar. Extremely comfortable to play.', CURRENT_TIMESTAMP),
+(13, 14, 13, 4, 'Key action feels very close to an acoustic piano. Loving it.', CURRENT_TIMESTAMP),
+(14, 15, 14, 4, 'Excellent entry-level acoustic. Tone is warm and loud.', CURRENT_TIMESTAMP),
+(15, 2, 15, 5, 'Premium stage piano. Keyboard action is flawless.', CURRENT_TIMESTAMP),
+(16, 3, 16, 4, 'Clean sound, weighted keys are good for practice.', CURRENT_TIMESTAMP),
+(17, 4, 17, 5, 'Pearl drums never disappoint. Heavy duty hardware.', CURRENT_TIMESTAMP),
+(18, 5, 18, 4, 'Perfect cymbals for beginners, bright and crisp sound.', CURRENT_TIMESTAMP),
+(19, 6, 19, 5, 'Beautiful alto sax. Key action is smooth and responsive.', CURRENT_TIMESTAMP),
+(20, 7, 20, 5, 'Indestructible. Drop it, kick it, it still sounds perfect.', CURRENT_TIMESTAMP),
+(21, 8, 21, 4, 'Great studio mic. Very clean and flat response.', CURRENT_TIMESTAMP),
+(22, 9, 22, 5, 'The effects library on this amp is massive. Great practice tool.', CURRENT_TIMESTAMP),
+(23, 10, 23, 5, 'D''Addario strings are my absolute go-to. Long lasting tone.', CURRENT_TIMESTAMP),
+(24, 11, 24, 4, 'Extremely sturdy stand. Auto-grip system works perfectly.', CURRENT_TIMESTAMP),
+(25, 12, 25, 4, 'Perfect bedroom amp. Marshall crunch in a small package.', CURRENT_TIMESTAMP),
+(26, 13, 26, 5, 'Awesome kit for the price. Comes with everything you need.', CURRENT_TIMESTAMP),
+(27, 14, 27, 4, 'Awesome practice amp. The presets are really fun to play with.', CURRENT_TIMESTAMP),
+(28, 15, 28, 4, 'Reduces ring without killing the tone. Very useful dry pack.', CURRENT_TIMESTAMP),
+(29, 2, 29, 5, 'Amazing sound isolation and detail. Professional grade.', CURRENT_TIMESTAMP),
+(30, 3, 30, 5, 'Analog synth magic. Very easy to create custom patches.', CURRENT_TIMESTAMP),
+(31, 4, 31, 5, 'Lightweight bass with great active EQ controls.', CURRENT_TIMESTAMP),
+(32, 5, 32, 5, 'The ultimate hybrid piano. Truly feels and sounds like a grand.', CURRENT_TIMESTAMP),
+(33, 6, 1, 4, 'Solid build. Classic sound. Loving the single-coils.', CURRENT_TIMESTAMP),
+(34, 7, 3, 5, 'Stunning piano. The keys feel very natural.', CURRENT_TIMESTAMP),
+(35, 8, 5, 5, 'Amazing cajon for acoustic sessions. Great snare sound.', CURRENT_TIMESTAMP),
+(36, 9, 7, 5, 'Awesome Tele! Neck feels fast and smooth.', CURRENT_TIMESTAMP),
+(37, 10, 11, 4, 'Great shredder guitar. Pickups are nice and hot.', CURRENT_TIMESTAMP),
+(38, 11, 14, 5, 'Highly recommend this acoustic. Best value out there.', CURRENT_TIMESTAMP),
+(39, 12, 20, 5, 'SM58 is a legend. Clear vocals and built like a tank.', CURRENT_TIMESTAMP),
+(40, 13, 22, 4, 'Katana 50 lives up to the hype. Punchy and loud.', CURRENT_TIMESTAMP),
+(41, 14, 1, 1, '*******! *******! This product is garbage.', CURRENT_TIMESTAMP);

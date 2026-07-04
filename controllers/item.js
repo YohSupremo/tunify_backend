@@ -53,6 +53,18 @@ exports.getItems = async (req, res) => {
     }
 
     const items = await Item.findAll({
+      attributes: {
+        include: [
+          [
+            Sequelize.literal(`(
+              SELECT COALESCE(AVG(rating), 0)
+              FROM review
+              WHERE review.item_id = Item.id AND review.deleted_at IS NULL
+            )`),
+            'average_rating'
+          ]
+        ]
+      },
       where: whereClause,
       include: [
         { model: Brand, attributes: ["name"] },
@@ -106,6 +118,7 @@ exports.getItems = async (req, res) => {
         badge: isNew ? "new" : "",
         is_featured: item.is_featured,
         is_carousel: item.is_carousel,
+        rating: Number(item.getDataValue('average_rating')) || 0,
         deleted_at: item.deleted_at || null
       };
     });
