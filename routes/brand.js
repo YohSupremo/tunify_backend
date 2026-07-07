@@ -4,10 +4,10 @@ const brandController = require("../controllers/brand");
 const { isAuthenticatedUser, isAdmin } = require("../middlewares/auth");
 const upload = require("../utils/multer");
 
-// Public route: anyone can view brands
+
 router.get("/brands", brandController.getBrands);
 
-// Protected routes: only admins can modify
+
 router.post("/brands", isAuthenticatedUser, isAdmin, upload.single("logo"), brandController.createBrand);
 router.post("/brands/restore", isAuthenticatedUser, isAdmin, brandController.restoreBrand);
 router.put("/brands", isAuthenticatedUser, isAdmin, upload.single("logo"), brandController.updateBrand);

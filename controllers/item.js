@@ -41,10 +41,10 @@ function saveBase64Image(base64Data) {
   return `images/${filename}`;
 }
 
-// 1. GET ALL ITEMS (mapped to frontend expectations)
+
 exports.getItems = async (req, res) => {
   try {
-    const { status } = req.query; // active | deactivated | all
+    const { status } = req.query; 
     let whereClause = {};
     if (!status || status === "active") {
       whereClause = { deleted_at: null };
@@ -70,7 +70,7 @@ exports.getItems = async (req, res) => {
         { model: Brand, attributes: ["name"] },
         { model: Category, attributes: ["name"] },
         { model: db.ItemImage, as: "images" },
-        // Fetch the single most-recent restock log for cost_price
+        
         {
           model: db.RestockLog,
           as: "restockLogs",
@@ -101,9 +101,9 @@ exports.getItems = async (req, res) => {
         category_id: item.category_id,
         brand: item.Brand ? item.Brand.name : "",
         category: item.Category ? item.Category.name : "",
-        // Effective cost = most recent restock cost_price
+        
         cost_price: latestRestock ? Number(latestRestock.cost_price) : 0,
-        // Most recent supplier name (from the latest restock log)
+        
         supplier: latestRestock && latestRestock.Supplier ? latestRestock.Supplier.name : "",
         price: Number(item.sell_price),
         stock: item.quantity,
@@ -130,7 +130,7 @@ exports.getItems = async (req, res) => {
   }
 };
 
-// 2. CREATE ITEM
+
 exports.createItem = async (req, res) => {
   try {
     const { name, brandName, categoryName, price, stock, desc, is_featured, is_carousel } = req.body;
@@ -139,11 +139,11 @@ exports.createItem = async (req, res) => {
       return res.status(400).json({ error: "Name, brand, category, and price are required" });
     }
 
-    // Look up brand ID
+    
     const brand = await Brand.findOne({ where: { name: brandName, deleted_at: null } });
     if (!brand) return res.status(400).json({ error: `Brand "${brandName}" not found` });
 
-    // Look up category ID
+    
     const category = await Category.findOne({ where: { name: categoryName.toLowerCase(), deleted_at: null } });
     if (!category) return res.status(400).json({ error: `Category "${categoryName}" not found` });
 
@@ -158,7 +158,7 @@ exports.createItem = async (req, res) => {
       is_carousel: is_carousel === 'true' || is_carousel === true
     });
 
-    // Handle multiple uploaded files
+    
     if (req.files && req.files.length > 0) {
       const primaryIdx = req.body.primaryImageIndex !== undefined ? Number(req.body.primaryImageIndex) : 0;
       
@@ -168,7 +168,7 @@ exports.createItem = async (req, res) => {
         const filename = file.filename;
         const relativePath = `images/${filename}`;
 
-        // Copy file to frontend images folder
+        
         const frontendDir = path.join(__dirname, "..", "..", "tunify", "images");
         try {
           if (!fs.existsSync(frontendDir)) {
@@ -197,7 +197,7 @@ exports.createItem = async (req, res) => {
   }
 };
 
-// 3. UPDATE ITEM
+
 exports.updateItem = async (req, res) => {
   try {
     const { id, name, brandName, categoryName, price, stock, desc, is_featured, is_carousel } = req.body;
@@ -237,7 +237,7 @@ exports.updateItem = async (req, res) => {
 
     await item.update(updateData);
 
-    // --- Process multiple images ---
+    
     const keptImageIds = req.body.existingImages ? JSON.parse(req.body.existingImages) : null;
     if (keptImageIds) {
       await db.ItemImage.destroy({
@@ -248,7 +248,7 @@ exports.updateItem = async (req, res) => {
       });
     }
 
-    const primaryImage = req.body.primaryImage; // e.g. "existing_12" or "new_0"
+    const primaryImage = req.body.primaryImage; 
     if (primaryImage && primaryImage.startsWith("existing_")) {
       const primaryId = parseInt(primaryImage.split("_")[1]);
       await db.ItemImage.update({ is_primary: true }, { where: { id: primaryId, item_id: id } });
@@ -257,7 +257,7 @@ exports.updateItem = async (req, res) => {
       await db.ItemImage.update({ is_primary: false }, { where: { item_id: id } });
     }
 
-    // Process new uploads
+    
     if (req.files && req.files.length > 0) {
       const maxSortOrderImg = await db.ItemImage.findOne({
         where: { item_id: id },
@@ -271,7 +271,7 @@ exports.updateItem = async (req, res) => {
         const filename = file.filename;
         const relativePath = `images/${filename}`;
 
-        // Copy file to frontend images folder
+        
         const frontendDir = path.join(__dirname, "..", "..", "tunify", "images");
         try {
           if (!fs.existsSync(frontendDir)) {
@@ -295,7 +295,7 @@ exports.updateItem = async (req, res) => {
       await db.ItemImage.bulkCreate(imageRecords);
     }
 
-    // Ensure at least one image is primary if any exist
+    
     const currentImages = await db.ItemImage.findAll({ where: { item_id: id } });
     if (currentImages.length > 0) {
       const hasPrimary = currentImages.some(img => img.is_primary);
@@ -311,7 +311,7 @@ exports.updateItem = async (req, res) => {
   }
 };
 
-// 4. DELETE ITEM (Soft Delete)
+
 exports.deleteItem = async (req, res) => {
   try {
     const { id } = req.body;
@@ -332,7 +332,7 @@ exports.deleteItem = async (req, res) => {
   }
 };
 
-// 5. RESTORE ITEM (un-soft-delete)
+
 exports.restoreItem = async (req, res) => {
   try {
     const { id } = req.body;

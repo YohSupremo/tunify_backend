@@ -1,8 +1,8 @@
 const db = require("../models");
 const sequelize = db.sequelize;
 
-// GET RESTOCK LOG HISTORY — with filters
-// Query params: supplier_id, item_id, brand_id, category_id, date_from, date_to
+
+
 exports.getRestockLogs = async (req, res) => {
   try {
     const { supplier_id, item_id, brand_id, category_id, date_from, date_to } = req.query;
@@ -11,7 +11,7 @@ exports.getRestockLogs = async (req, res) => {
     if (supplier_id) whereLogs.supplier_id = Number(supplier_id);
     if (item_id) whereLogs.item_id = Number(item_id);
 
-    // Date range filter on created_at
+    
     if (date_from || date_to) {
       whereLogs.created_at = {};
       if (date_from) whereLogs.created_at[db.Sequelize.Op.gte] = new Date(date_from);

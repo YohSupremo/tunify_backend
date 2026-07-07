@@ -2,10 +2,10 @@ const db = require("../models");
 const Brand = db.Brand;
 const Item = db.Item;
 
-// 1. GET ALL
+
 exports.getBrands = async (req, res) => {
   try {
-    const { status } = req.query; // active | deactivated | all
+    const { status } = req.query; 
     let whereClause = {};
     if (!status || status === "active") {
       whereClause = { deleted_at: null };
@@ -23,7 +23,7 @@ exports.getBrands = async (req, res) => {
   }
 };
 
-// 2. CREATE
+
 exports.createBrand = async (req, res) => {
   try {
     const { name, description, productIds } = req.body;
@@ -48,7 +48,7 @@ exports.createBrand = async (req, res) => {
       }
     }
 
-    // 1. Create the brand
+    
     const brand = await Brand.create({ 
       name: name.trim(),
       description: description ? description.trim() : null,
@@ -64,7 +64,7 @@ exports.createBrand = async (req, res) => {
       }
     }
 
-    // 2. If products were checked, assign them to the new brand ID
+    
     if (Array.isArray(productIdsParsed) && productIdsParsed.length > 0) {
       await Item.update(
         { brand_id: brand.id },
@@ -82,7 +82,7 @@ exports.createBrand = async (req, res) => {
   }
 };  
 
-// 3. UPDATE (Updates details + updates associated product IDs)
+
 exports.updateBrand = async (req, res) => {
   try {
     const { oldName, newName, description, productIds } = req.body;
@@ -117,7 +117,7 @@ exports.updateBrand = async (req, res) => {
       logoPath = null;
     }
 
-    // A. Update brand details
+    
     await brand.update({ 
       name: newName.trim(),
       description: description !== undefined ? description.trim() : brand.description,
@@ -133,22 +133,22 @@ exports.updateBrand = async (req, res) => {
       }
     }
 
-    // B. Re-associate products if productIds array was sent
+    
     if (Array.isArray(productIdsParsed)) {
       if (productIdsParsed.length > 0) {
-        // 1. Revert items that were in this brand but are now unchecked (set brand_id to default 1)
+        
         await Item.update(
           { brand_id: 1 }, 
           { where: { brand_id: brand.id, id: { [db.Sequelize.Op.notIn]: productIdsParsed } } }
         );
 
-        // 2. Set brand_id to this brand's ID for all checked items
+        
         await Item.update(
           { brand_id: brand.id },
           { where: { id: { [db.Sequelize.Op.in]: productIdsParsed } } }
         );
       } else {
-        // Revert all items that were in this brand to default 1
+        
         await Item.update(
           { brand_id: 1 },
           { where: { brand_id: brand.id } }
@@ -166,7 +166,7 @@ exports.updateBrand = async (req, res) => {
   }
 };
 
-// 4. DELETE
+
 exports.deleteBrand = async (req, res) => {
   try {
     const { name } = req.body;
@@ -201,7 +201,7 @@ exports.deleteBrand = async (req, res) => {
   }
 };
 
-// 5. RESTORE
+
 exports.restoreBrand = async (req, res) => {
   try {
     const { name } = req.body;

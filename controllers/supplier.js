@@ -1,18 +1,18 @@
 const db = require("../models");
 const Supplier = db.Supplier;
 
-// 1. GET ALL — includes restock entry count per supplier
+
 exports.getSuppliers = async (req, res) => {
   try {
-    const { status } = req.query; // active | deactivated | all
+    const { status } = req.query; 
     let whereClause = {};
 
     if (status === "deactivated") {
       whereClause = { deleted_at: { [db.Sequelize.Op.ne]: null } };
     } else if (status === "all") {
-      // Fetch all, do not filter by deleted_at
+      
     } else {
-      // default: active only
+      
       whereClause = { deleted_at: null };
     }
 
@@ -20,7 +20,7 @@ exports.getSuppliers = async (req, res) => {
       where: whereClause
     });
 
-    // Attach restock entry counts
+    
     const result = await Promise.all(suppliers.map(async s => {
       const restockCount = await db.RestockLog.count({ where: { supplier_id: s.id } });
       return {
@@ -43,7 +43,7 @@ exports.getSuppliers = async (req, res) => {
   }
 };
 
-// 2. CREATE
+
 exports.createSupplier = async (req, res) => {
   try {
     const { name, contact_name, email, phone, address_line } = req.body;
@@ -70,7 +70,7 @@ exports.createSupplier = async (req, res) => {
   }
 };
 
-// 3. UPDATE
+
 exports.updateSupplier = async (req, res) => {
   try {
     const { id } = req.params;
@@ -102,7 +102,7 @@ exports.updateSupplier = async (req, res) => {
   }
 };
 
-// 4. DEACTIVATE (Soft delete via deleted_at)
+
 exports.deleteSupplier = async (req, res) => {
   try {
     const { id } = req.params;
@@ -115,8 +115,8 @@ exports.deleteSupplier = async (req, res) => {
       return res.status(404).json({ error: "Supplier not found" });
     }
 
-    // Block deactivation if the supplier has restock log history
-    // (fk_restock_supplier is ON DELETE RESTRICT at the DB level too)
+    
+    
     const restockCount = await db.RestockLog.count({ where: { supplier_id: id } });
     if (restockCount > 0) {
       return res.status(400).json({
@@ -132,7 +132,7 @@ exports.deleteSupplier = async (req, res) => {
   }
 };
 
-// 5. RESTORE / REACTIVATE
+
 exports.restoreSupplier = async (req, res) => {
   try {
     const { id } = req.params;

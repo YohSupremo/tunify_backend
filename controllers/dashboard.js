@@ -1,7 +1,7 @@
 const db = require("../models");
 const sequelize = db.sequelize;
 
-// Paid order condition (reusable SQL fragment)
+
 const PAID_COND = `((p.payment_method != 'cod' AND oi.status_id IN (2, 3, 4)) OR (p.payment_method = 'cod' AND oi.status_id = 4))`;
 
 exports.addressChart = async (req, res) => {
@@ -92,7 +92,7 @@ exports.itemsChart = async (req, res) => {
 
 exports.dashboardStats = async (req, res) => {
   try {
-    // --- Revenue & profit from completed paid orders ---
+    
     const [financials] = await sequelize.query(
       `SELECT 
          COALESCE(SUM(CASE WHEN ${PAID_COND} THEN ol.quantity * ol.sell_price ELSE 0 END), 0) as total_revenue,
@@ -104,13 +104,13 @@ exports.dashboardStats = async (req, res) => {
       { type: db.Sequelize.QueryTypes.SELECT }
     );
 
-    // --- Total restock expenses (all time) ---
+    
     const [restockExpenses] = await sequelize.query(
       `SELECT COALESCE(SUM(quantity * cost_price), 0) as total_spent FROM restock_logs`,
       { type: db.Sequelize.QueryTypes.SELECT }
     );
 
-    // --- Inventory value (current stock × latest cost per item) ---
+    
     const [inventoryValue] = await sequelize.query(
       `SELECT COALESCE(SUM(i.quantity * COALESCE(rl.cost_price, 0)), 0) as inventory_value
        FROM item i
@@ -123,13 +123,13 @@ exports.dashboardStats = async (req, res) => {
       { type: db.Sequelize.QueryTypes.SELECT }
     );
 
-    // --- Customers ---
+    
     const [custRes] = await sequelize.query(
       "SELECT COUNT(*) as count FROM customer WHERE deleted_at IS NULL",
       { type: db.Sequelize.QueryTypes.SELECT }
     );
 
-    // --- Stock alerts ---
+    
     const [outOfStockRes] = await sequelize.query(
       "SELECT COUNT(*) as count FROM item WHERE quantity = 0 AND deleted_at IS NULL",
       { type: db.Sequelize.QueryTypes.SELECT }
@@ -167,7 +167,7 @@ exports.dashboardStats = async (req, res) => {
   }
 };
 
-// --- Recent Restock Logs ---
+
 exports.stockActivity = async (req, res) => {
   try {
     const logs = await sequelize.query(

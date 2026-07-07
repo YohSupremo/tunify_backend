@@ -87,7 +87,7 @@ exports.loginUser = async (req, res) => {
       expiresIn: process.env.JWT_EXPIRES_IN || "1h"
     });
 
-    // Save token to database
+    
     await user.update({ token });
 
     const customer = await Customer.findOne({ where: { user_id: user.id } });
@@ -153,7 +153,7 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    // Retrieve default address for UI/session consistency
+    
     const [addressRows] = await sequelize.query(
       "SELECT street, city, province, zip_code FROM customer_addresses WHERE user_id = ? AND is_default = 1 AND deleted_at IS NULL LIMIT 1",
       {
@@ -238,7 +238,7 @@ exports.deleteAddress = async (req, res) => {
     const userId = req.body.user.id;
     const addressId = req.params.id;
 
-    // 1. Soft-delete the target address and clear its is_default status
+    
     await sequelize.query(
       "UPDATE customer_addresses SET deleted_at = NOW(), is_default = 0 WHERE id = ? AND user_id = ?",
       {
@@ -247,7 +247,7 @@ exports.deleteAddress = async (req, res) => {
       }
     );
 
-    // 2. Check if the user still has a default address
+    
     const defaultAddresses = await sequelize.query(
       "SELECT id FROM customer_addresses WHERE user_id = ? AND deleted_at IS NULL AND is_default = 1 LIMIT 1",
       {
@@ -256,7 +256,7 @@ exports.deleteAddress = async (req, res) => {
       }
     );
 
-    // 3. If no default address remains, check for any other active addresses
+    
     if (defaultAddresses.length === 0) {
       const remainingAddresses = await sequelize.query(
         "SELECT id FROM customer_addresses WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT 1",
@@ -266,7 +266,7 @@ exports.deleteAddress = async (req, res) => {
         }
       );
 
-      // 4. Promote the most recent active address to default
+      
       if (remainingAddresses.length > 0) {
         const newDefaultId = remainingAddresses[0].id;
         await sequelize.query(

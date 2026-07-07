@@ -2,9 +2,9 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Reference: node-ns-2026/utils/multer.js
-// Enhancement: also writes to tunify frontend images folder so the
-// frontend can serve uploaded files without a proxy.
+
+
+
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         const dir = path.join(__dirname, "..", "images");

@@ -1,13 +1,13 @@
 const db = require("../models");
 const Review = db.Review;
-const OrderInfo = db.sequelize.models.OrderInfo; // Using raw queries or Sequelize
+const OrderInfo = db.sequelize.models.OrderInfo; 
 const sequelize = db.sequelize;
 const Sequelize = db.Sequelize;
 
-// Helper to replace bad words with matching length of asterisks (substring matches allowed for compound words)
+
 function censorProfanity(text) {
   if (!text) return text;
-  // Ordered by length descending to ensure longer compound matches are processed first
+  
   const badWords = ['tanginamo', 'tarantado', 'siraulo', 'tangina', 'kupal', 'tanga', 'gago', 'bobo', 'puta'];
   let censored = text;
   badWords.forEach(word => {
@@ -17,7 +17,7 @@ function censorProfanity(text) {
   return censored;
 }
 
-// 1. SUBMIT OR UPDATE A PRODUCT REVIEW
+
 exports.submitReview = async (req, res) => {
   try {
     const userId = req.body.user.id;
@@ -32,7 +32,7 @@ exports.submitReview = async (req, res) => {
       return res.status(400).json({ error: "Rating must be between 1 and 5." });
     }
 
-    // Check if user has purchased the item and the order status is "Delivered" (status_id = 4)
+    
     const [purchased] = await sequelize.query(
       `SELECT oi.id 
        FROM orderinfo oi
@@ -51,10 +51,10 @@ exports.submitReview = async (req, res) => {
       });
     }
 
-    // Filter toxic words
+    
     const censoredComment = censorProfanity(comment);
 
-    // Check if review record already exists in the table (even if soft-deleted) to update/restore it
+    
     const [existingReview] = await sequelize.query(
       `SELECT id FROM review WHERE user_id = :userId AND item_id = :itemId LIMIT 1`,
       {
@@ -64,7 +64,7 @@ exports.submitReview = async (req, res) => {
     );
 
     if (existingReview) {
-      // Update and restore/reactivate the review
+      
       await sequelize.query(
         `UPDATE review SET rating = :rating, comment = :comment, deleted_at = NULL WHERE id = :id`,
         {
@@ -78,7 +78,7 @@ exports.submitReview = async (req, res) => {
         message: "Your review has been updated successfully!" 
       });
     } else {
-      // Create new review
+      
       await sequelize.query(
         `INSERT INTO review (user_id, item_id, rating, comment) VALUES (:userId, :itemId, :rating, :comment)`,
         {
@@ -98,7 +98,7 @@ exports.submitReview = async (req, res) => {
   }
 };
 
-// 2. GET REVIEWS FOR A SPECIFIC ITEM
+
 exports.getItemReviews = async (req, res) => {
   try {
     const itemId = req.params.itemId;
@@ -107,7 +107,7 @@ exports.getItemReviews = async (req, res) => {
       return res.status(400).json({ error: "Item ID is required." });
     }
 
-    // Fetch all reviews for this item
+    
     const reviews = await sequelize.query(
       `SELECT r.id, r.user_id, r.rating, r.comment, DATE_FORMAT(r.created_at, '%Y-%m-%d') as date, 
               CONCAT(c.first_name, ' ', c.last_name) as customer_name, c.profile_image_path as customer_avatar
@@ -122,7 +122,7 @@ exports.getItemReviews = async (req, res) => {
       }
     );
 
-    // Calculate average rating and count
+    
     const [stats] = await sequelize.query(
       `SELECT COALESCE(AVG(rating), 0) as average_rating, COUNT(id) as total_reviews 
        FROM review 
@@ -145,7 +145,7 @@ exports.getItemReviews = async (req, res) => {
   }
 };
 
-// 3. CHECK USER ELIGIBILITY TO REVIEW
+
 exports.checkEligibility = async (req, res) => {
   try {
     const userId = req.body.user.id;
@@ -155,7 +155,7 @@ exports.checkEligibility = async (req, res) => {
       return res.status(400).json({ error: "Item ID is required." });
     }
 
-    // Check if user has purchased the item and it is Delivered (status_id = 4)
+    
     const [purchased] = await sequelize.query(
       `SELECT oi.id 
        FROM orderinfo oi
@@ -168,7 +168,7 @@ exports.checkEligibility = async (req, res) => {
       }
     );
 
-    // Check if they already reviewed it
+    
     const [reviewed] = await sequelize.query(
       `SELECT rating, comment FROM review WHERE user_id = :userId AND item_id = :itemId AND deleted_at IS NULL LIMIT 1`,
       {
@@ -189,7 +189,7 @@ exports.checkEligibility = async (req, res) => {
   }
 };
 
-// 4. DELETE A REVIEW (SOFT DELETE)
+
 exports.deleteReview = async (req, res) => {
   try {
     const userId = req.body.user.id;
@@ -199,7 +199,7 @@ exports.deleteReview = async (req, res) => {
       return res.status(400).json({ error: "Review ID is required." });
     }
 
-    // Verify ownership of the review before deleting
+    
     const [review] = await sequelize.query(
       `SELECT id FROM review WHERE id = :reviewId AND user_id = :userId AND deleted_at IS NULL LIMIT 1`,
       {
@@ -212,7 +212,7 @@ exports.deleteReview = async (req, res) => {
       return res.status(404).json({ error: "Review not found or unauthorized to delete." });
     }
 
-    // Soft delete the review
+    
     await sequelize.query(
       `UPDATE review SET deleted_at = NOW() WHERE id = :reviewId`,
       {
@@ -231,7 +231,7 @@ exports.deleteReview = async (req, res) => {
   }
 };
 
-// 5. GET ALL REVIEWS (FOR ADMIN)
+
 exports.getAllReviewsForAdmin = async (req, res) => {
   try {
     const reviews = await sequelize.query(
@@ -259,7 +259,7 @@ exports.getAllReviewsForAdmin = async (req, res) => {
   }
 };
 
-// 6. HIDE A REVIEW (ADMIN ONLY)
+
 exports.hideReview = async (req, res) => {
   try {
     const reviewId = req.params.id;
@@ -286,7 +286,7 @@ exports.hideReview = async (req, res) => {
   }
 };
 
-// 7. UNHIDE A REVIEW (ADMIN ONLY)
+
 exports.unhideReview = async (req, res) => {
   try {
     const reviewId = req.params.id;

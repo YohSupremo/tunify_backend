@@ -1,12 +1,12 @@
 const db = require("../models");
 const Settings = db.Settings;
 
-// 1. GET SETTINGS
+
 exports.getSettings = async (req, res) => {
   try {
     let settings = await Settings.findByPk(1);
     
-    // If settings row does not exist, create a default one
+    
     if (!settings) {
       settings = await Settings.create({
         id: 1,
@@ -25,7 +25,7 @@ exports.getSettings = async (req, res) => {
   }
 };
 
-// 2. UPDATE SETTINGS
+
 exports.updateSettings = async (req, res) => {
   try {
     const {
@@ -36,7 +36,7 @@ exports.updateSettings = async (req, res) => {
       store_contact_phone
     } = req.body;
 
-    // Validation checks
+    
     if (!store_name || store_name.trim() === "") {
       return res.status(400).json({ error: "Store name is required" });
     }
@@ -62,13 +62,13 @@ exports.updateSettings = async (req, res) => {
 
 
 
-    // Find or create settings row to update
+    
     let settings = await Settings.findByPk(1);
     if (!settings) {
       settings = await Settings.create({ id: 1 });
     }
 
-    // Perform update
+    
     await settings.update({
       low_stock_threshold: thresholdVal,
       default_shipping_fee: shippingFeeVal,
@@ -84,7 +84,7 @@ exports.updateSettings = async (req, res) => {
   }
 };
 
-// 3. BULK UPDATE HOMEPAGE CONTENT (Carousel & Featured items)
+
 exports.updateHomepageContent = async (req, res) => {
   try {
     const { carouselIds, featuredIds } = req.body;
@@ -98,10 +98,10 @@ exports.updateHomepageContent = async (req, res) => {
 
     const Item = db.Item;
 
-    // Reset all flags first
+    
     await Item.update({ is_carousel: false, is_featured: false }, { where: {} });
 
-    // Update flagged items
+    
     if (carouselIntIds.length > 0) {
       await Item.update({ is_carousel: true }, {
         where: { id: { [require("sequelize").Op.in]: carouselIntIds } }

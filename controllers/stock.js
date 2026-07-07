@@ -2,7 +2,7 @@ const db = require("../models");
 const Item = db.Item;
 const Category = db.Category;
 
-// 1. GET ALL STOCKS (with effective cost = most recent restock cost_price)
+
 exports.getStocks = async (req, res) => {
   try {
     const items = await Item.findAll({
@@ -40,7 +40,7 @@ exports.getStocks = async (req, res) => {
   }
 };
 
-// 2. BULK RESTOCK — accepts array of {itemId, quantityToAdd, costPrice, supplierId}
+
 exports.bulkRestock = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   try {
@@ -51,7 +51,7 @@ exports.bulkRestock = async (req, res) => {
       return res.status(400).json({ error: "Restock list cannot be empty." });
     }
 
-    // Validate all lines first — reject whole batch on any failure
+    
     const failedLines = [];
     const itemCache = {};
     const supplierCache = {};
@@ -59,7 +59,7 @@ exports.bulkRestock = async (req, res) => {
     for (let i = 0; i < restocks.length; i++) {
       const { itemId, quantityToAdd, costPrice, supplierId } = restocks[i];
 
-      // Validate supplier for this row
+      
       if (!supplierId) {
         failedLines.push({ lineIndex: i + 1, itemId, reason: "A supplier must be selected for this row." });
         continue;
@@ -77,19 +77,19 @@ exports.bulkRestock = async (req, res) => {
         supplierCache[supplierId] = supplier;
       }
 
-      // quantity must be a positive integer
+      
       if (!itemId || !Number.isInteger(Number(quantityToAdd)) || Number(quantityToAdd) <= 0) {
         failedLines.push({ lineIndex: i + 1, itemId, reason: "Quantity must be a positive whole number." });
         continue;
       }
 
-      // costPrice must be positive
+      
       if (costPrice === undefined || costPrice === null || Number(costPrice) <= 0) {
         failedLines.push({ lineIndex: i + 1, itemId, reason: "Cost price must be a positive number." });
         continue;
       }
 
-      // Find item
+      
       const item = await Item.findOne({ where: { id: itemId, deleted_at: null }, transaction });
       if (!item) {
         failedLines.push({ lineIndex: i + 1, itemId, reason: `Item ID ${itemId} not found.` });
@@ -97,7 +97,7 @@ exports.bulkRestock = async (req, res) => {
       }
       itemCache[itemId] = item;
 
-      // cost_price must be strictly less than item's sell_price
+      
       if (Number(costPrice) >= Number(item.sell_price)) {
         failedLines.push({
           lineIndex: i + 1,
@@ -115,7 +115,7 @@ exports.bulkRestock = async (req, res) => {
       });
     }
 
-    // All lines valid — commit
+    
     for (const entry of restocks) {
       const { itemId, quantityToAdd, costPrice, supplierId } = entry;
       const item = itemCache[itemId];

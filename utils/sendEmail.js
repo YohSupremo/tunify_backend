@@ -15,7 +15,7 @@ const sendEmail = async (options) => {
         from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
         to: options.email,
         subject: options.subject,
-        // Use pre-built html if provided, otherwise wrap plain message
+        
         html: options.html || `<p>${options.message}</p>`,
         attachments: options.attachments || []
     };

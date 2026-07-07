@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       supplier_id: {
         type: DataTypes.INTEGER,
-        allowNull: false, // supplier is now always required
+        allowNull: false, 
       },
       quantity: {
         type: DataTypes.INTEGER,

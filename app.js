@@ -21,10 +21,10 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve uploaded profile pictures statically
+
 app.use("/images", express.static(path.join(__dirname, "images")));
 
-// Mount user and chart routes directly under /api/v1
+
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", dashboardRoutes);
 app.use("/api/v1", categoryRoutes);
@@ -45,4 +45,4 @@ app.listen(process.env.PORT, () => {
   console.log("DB_HOST =", process.env.DB_HOST);
 });
 
-// Touched to trigger nodemon restart and reload .env configurations
+

@@ -14,11 +14,7 @@ pdfmake.setFonts(fonts);
 pdfmake.setUrlAccessPolicy(() => true);
 pdfmake.setLocalAccessPolicy(() => true);
 
-/**
- * Generates an itemized receipt PDF buffer
- * @param {Object} data 
- * @returns {Promise<Buffer>}
- */
+
 async function generateReceiptPdf({
   orderId,
   customerName,
@@ -48,7 +44,7 @@ async function generateReceiptPdf({
   };
   const paymentLabel = paymentLabels[paymentMethod] || paymentMethod || 'COD';
 
-  // Build item rows for pdfmake table
+  
   const itemRows = [
     [
       { text: 'Item Description', bold: true, fillColor: '#1a1a2e', color: '#ffffff' },

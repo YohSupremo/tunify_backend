@@ -2,7 +2,7 @@ const db = require("../models");
 const sendEmail = require('../utils/sendEmail');
 const generateReceiptPdf = require('../utils/generateReceiptPdf');
 
-// Helper to format Date objects or strings into a clean "MMM DD, YYYY hh:mm AM/PM" format
+
 const formatDate = (dateVal) => {
   if (!dateVal) return '';
   const d = new Date(dateVal);
@@ -19,18 +19,18 @@ const formatDate = (dateVal) => {
   return `${months[d.getMonth()]} ${pad(d.getDate())}, ${d.getFullYear()} ${hours}:${minutes} ${ampm}`;
 };
 
-// ── Receipt HTML builder (shared by placeOrder + updateOrderStatus) ──────────
+
 function buildReceiptHtml({ orderId, customerName, customerEmail, customerPhone, shippingStreet, shippingCity, shippingProvince, shippingZip, datePlaced, dateShipped, statusName, paymentMethod, paymentStatus, transactionRef, items, subtotal, shippingFee, grandTotal, headerTitle, headerSubtitle, storeName, storeEmail = '', storePhone = '' }) {
   const paymentLabels = { cod: 'Cash on Delivery (COD)', gcash: 'GCash', card: 'Credit / Debit Card', bank_transfer: 'Bank Transfer' };
   const paymentLabel = paymentLabels[paymentMethod] || paymentMethod || 'COD';
   
-  // Custom status color scheme based on the Sunset Amber & Rose Gold palette
+  
   const statusColors = { 
-    Pending: '#EAB308',     // Warm Amber
-    Processing: '#C084FC',  // Soft Violet
-    Shipped: '#FB7185',     // Rose Gold
-    Delivered: '#10B981',   // Emerald Green
-    Cancelled: '#F43F5E'    // Deep Rose / Red
+    Pending: '#EAB308',     
+    Processing: '#C084FC',  
+    Shipped: '#FB7185',     
+    Delivered: '#10B981',   
+    Cancelled: '#F43F5E'    
   };
   const statusColor = statusColors[statusName] || '#94A3B8';
 
@@ -301,7 +301,7 @@ exports.placeOrder = async (req, res) => {
       return res.status(400).json({ error: "Please add a shipping address in your profile before placing an order." });
     }
 
-    // Insert into orderinfo
+    
     const [orderId] = await db.sequelize.query(
       "INSERT INTO orderinfo (user_id, address_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed) VALUES (:userId, :addressId, :street, :city, :province, :zip, :shippingFee, CURRENT_TIMESTAMP)",
       {
@@ -319,9 +319,9 @@ exports.placeOrder = async (req, res) => {
       }
     );
 
-    // Insert order lines and decrement stock
+    
     for (const item of cart) {
-      // Validate stock levels
+      
       const [itemInDb] = await db.sequelize.query(
         "SELECT id, name, quantity, sell_price FROM item WHERE id = :itemId FOR UPDATE",
         {
@@ -345,7 +345,7 @@ exports.placeOrder = async (req, res) => {
 
       const sellPrice = itemInDb.sell_price;
 
-      // Look up latest cost price from restock logs
+      
       const [latestRestock] = await db.sequelize.query(
         "SELECT cost_price FROM restock_logs WHERE item_id = :itemId ORDER BY created_at DESC LIMIT 1",
         {
@@ -371,7 +371,7 @@ exports.placeOrder = async (req, res) => {
         }
       );
 
-      // Decrement stock quantity
+      
       await db.sequelize.query(
         "UPDATE item SET quantity = quantity - :quantity WHERE id = :itemId",
         {
@@ -385,7 +385,7 @@ exports.placeOrder = async (req, res) => {
       );
     }
 
-    // Calculate total and insert payment record
+    
     let orderSubtotal = 0;
     for (const item of cart) {
       const [itemInDb] = await db.sequelize.query(
@@ -399,7 +399,7 @@ exports.placeOrder = async (req, res) => {
       const price = itemInDb ? itemInDb.sell_price : item.price;
       orderSubtotal += parseFloat(price) * parseInt(item.quantity);
     }
-    const amountPaid = orderSubtotal + shippingFee; // subtotal + shipping fee
+    const amountPaid = orderSubtotal + shippingFee; 
 
     let method = 'cod';
     if (payment_method && ['cod', 'gcash', 'card', 'bank_transfer'].includes(payment_method)) {
@@ -442,21 +442,21 @@ exports.placeOrder = async (req, res) => {
 
     await transaction.commit();
 
-    // Send order confirmation receipt email
+    
     const formattedOrderId = 'TN-' + String(orderId).padStart(4, '0');
     try {
-      // Fetch store settings for dynamic store name, email, and phone
+      
       const storeSettings = await db.Settings.findOne();
       const storeName = storeSettings ? storeSettings.store_name : 'Tunify';
       const storeEmail = storeSettings ? storeSettings.store_contact_email : '';
       const storePhone = storeSettings ? storeSettings.store_contact_phone : '';
-      // Fetch customer info for the email
+      
       const [userInfo] = await db.sequelize.query(
         `SELECT u.email, CONCAT(c.first_name, ' ', c.last_name) as customer_name, c.phone
          FROM users u JOIN customer c ON u.id = c.user_id WHERE u.id = :userId`,
         { replacements: { userId: req.body.user.id }, type: db.Sequelize.QueryTypes.SELECT }
       );
-      // Fetch order line items with names
+      
       const orderItems = await db.sequelize.query(
         `SELECT i.name, ol.quantity, ol.sell_price as price
          FROM orderline ol JOIN item i ON ol.item_id = i.id WHERE ol.orderinfo_id = :orderId`,
@@ -541,12 +541,12 @@ exports.placeOrder = async (req, res) => {
   }
 };
 
-// 3. UPDATE ORDER STATUS
+
 exports.updateOrderStatus = async (req, res) => {
   const transaction = await db.sequelize.transaction();
   try {
     const { id } = req.params;
-    const { status } = req.body; // status name (string) or status ID (number)
+    const { status } = req.body; 
 
     if (!id || status === undefined) {
       await transaction.rollback();
@@ -555,7 +555,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     const rawId = Number(id.replace('TN-', '')) || id;
 
-    // Resolve status name and ID
+    
     let statusId = null;
     let statusName = null;
 
@@ -584,7 +584,7 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(400).json({ error: `Invalid status: ${status}` });
     }
 
-    // Get current order state and customer email
+    
     const [oldOrder] = await db.sequelize.query(
       `SELECT oi.status_id, oi.user_id, u.email as customer_email
        FROM orderinfo oi
@@ -598,13 +598,13 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Security check: Only admin or the order owner can update/cancel the order
+    
     if (req.body.user.role !== 'admin' && oldOrder.user_id !== req.body.user.id) {
       await transaction.rollback();
       return res.status(403).json({ error: "Access denied. You can only update your own orders." });
     }
 
-    // Customers can only transition their own orders to Cancelled (statusId === 5)
+    
     if (req.body.user.role !== 'admin' && statusId !== 5) {
       await transaction.rollback();
       return res.status(403).json({ error: "Access denied. Customers can only cancel their own orders." });
@@ -612,9 +612,9 @@ exports.updateOrderStatus = async (req, res) => {
 
     const oldStatusId = oldOrder.status_id;
 
-    // 1. Stock handling if order is Cancelled
+    
     if (statusId === 5 && oldStatusId !== 5) {
-      // Transitioning TO Cancelled: Restore stock
+      
       const lines = await db.sequelize.query(
         "SELECT item_id, quantity FROM orderline WHERE orderinfo_id = :id",
         { replacements: { id: rawId }, type: db.Sequelize.QueryTypes.SELECT, transaction }
@@ -626,7 +626,7 @@ exports.updateOrderStatus = async (req, res) => {
         );
       }
     } else if (statusId !== 5 && oldStatusId === 5) {
-      // Transitioning FROM Cancelled: Decrement stock
+      
       const lines = await db.sequelize.query(
         "SELECT item_id, quantity FROM orderline WHERE orderinfo_id = :id",
         { replacements: { id: rawId }, type: db.Sequelize.QueryTypes.SELECT, transaction }
@@ -639,7 +639,7 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
 
-    // 2. COD payment handling if status is Delivered
+    
     if (statusName === 'Delivered') {
       await db.sequelize.query(
         "UPDATE payments SET payment_status = 'paid', paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP) WHERE orderinfo_id = :orderId AND payment_method = 'cod' AND payment_status = 'pending'",
@@ -647,7 +647,7 @@ exports.updateOrderStatus = async (req, res) => {
       );
     }
 
-    // Auto-mark non-COD payments as paid when processed/shipped/delivered
+    
     if (statusName === 'Processing' || statusName === 'Shipped' || statusName === 'Delivered') {
       const [payment] = await db.sequelize.query(
         "SELECT payment_method, transaction_ref FROM payments WHERE orderinfo_id = :orderId",
@@ -678,7 +678,7 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
 
-    // Determine date_shipped update
+    
     let dateShippedQuery = "";
     if (statusName === 'Shipped' || statusName === 'Delivered') {
       dateShippedQuery = "date_shipped = COALESCE(date_shipped, CURRENT_TIMESTAMP)";
@@ -686,7 +686,7 @@ exports.updateOrderStatus = async (req, res) => {
       dateShippedQuery = "date_shipped = NULL";
     }
 
-    // Update order status
+    
     await db.sequelize.query(
       `UPDATE orderinfo SET status_id = :statusId, ${dateShippedQuery} WHERE id = :id`,
       {
@@ -698,15 +698,15 @@ exports.updateOrderStatus = async (req, res) => {
 
     await transaction.commit();
 
-    // Lab 7: Send rich receipt email on status update
+    
     const orderId = 'TN-' + String(rawId).padStart(4, '0');
     try {
-      // Fetch store settings for dynamic store name, email, and phone
+      
       const storeSettings = await db.Settings.findOne();
       const storeName = storeSettings ? storeSettings.store_name : 'Tunify';
       const storeEmail = storeSettings ? storeSettings.store_contact_email : '';
       const storePhone = storeSettings ? storeSettings.store_contact_phone : '';
-      // Fetch full order details for the receipt
+      
       const [orderDetails] = await db.sequelize.query(
         `SELECT oi.shipping_street, oi.shipping_city, oi.shipping_province, oi.shipping_zip,
                 oi.shipping_fee, oi.date_placed, oi.date_shipped,
@@ -796,7 +796,7 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-// 4. GET ORDER DETAILS (Invoice/Receipt details)
+
 exports.getOrderDetails = async (req, res) => {
   try {
     const { id } = req.params;
@@ -806,7 +806,7 @@ exports.getOrderDetails = async (req, res) => {
 
     const rawId = Number(id.replace('TN-', '')) || id;
 
-    // Get order summary & customer details
+    
     const [order] = await db.sequelize.query(
       `SELECT 
          oi.id,
@@ -841,7 +841,7 @@ exports.getOrderDetails = async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Get order items (lines)
+    
     const items = await db.sequelize.query(
       `SELECT 
          ol.item_id,

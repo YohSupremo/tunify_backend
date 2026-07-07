@@ -16,8 +16,8 @@ exports.isAuthenticatedUser = async (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // DB check on every request — if account was deactivated after the token
-        // was issued, the token is still cryptographically valid but we block it here.
+        
+        
         const user = await User.findOne({ where: { id: decoded.id } });
         if (!user) {
             return res.status(401).json({ message: 'Account not found. Please log in again.' });

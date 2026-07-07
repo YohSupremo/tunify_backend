@@ -2,10 +2,10 @@ const db = require("../models");
 const Category = db.Category;
 const Item = db.Item;
 
-// 1. GET ALL (Returns ID, Name, Description)
+
 exports.getCategories = async (req, res) => {
   try {
-    const { status } = req.query; // active | deactivated | all
+    const { status } = req.query; 
     let whereClause = {};
     if (!status || status === "active") {
       whereClause = { deleted_at: null };
@@ -23,10 +23,10 @@ exports.getCategories = async (req, res) => {
   }
 };
 
-// 2. CREATE
+
 exports.createCategory = async (req, res) => {
   try {
-    const { name, description, productIds } = req.body; // Add productIds here
+    const { name, description, productIds } = req.body; 
 
     if (!name) {
       return res.status(400).json({ error: "Category name is required" });
@@ -34,13 +34,13 @@ exports.createCategory = async (req, res) => {
 
     const lowerName = name.trim().toLowerCase();
 
-    // 1. Create the category
+    
     const category = await Category.create({ 
       name: lowerName,
       description: description ? description.trim() : null
     });
 
-    // 2. If products were checked, assign them to the new category ID
+    
     if (Array.isArray(productIds) && productIds.length > 0) {
       await Item.update(
         { category_id: category.id },
@@ -58,7 +58,7 @@ exports.createCategory = async (req, res) => {
   }
 };
 
-// 3. UPDATE (Updates details + updates associated product IDs)
+
 exports.updateCategory = async (req, res) => {
   try {
     const { oldName, newName, description, productIds } = req.body;
@@ -75,28 +75,28 @@ exports.updateCategory = async (req, res) => {
       return res.status(404).json({ error: "Category not found" });
     }
 
-    // A. Update category name and description
+    
     await category.update({ 
       name: newName.trim().toLowerCase(),
       description: description !== undefined ? description.trim() : category.description
     });
 
-    // B. Re-associate products if productIds array was sent
+    
     if (Array.isArray(productIds)) {
       if (productIds.length > 0) {
-        // 1. Revert items that were in this category but are now unchecked (set category_id to default 1)
+        
         await Item.update(
           { category_id: 1 }, 
           { where: { category_id: category.id, id: { [db.Sequelize.Op.notIn]: productIds } } }
         );
 
-        // 2. Set category_id to this category's ID for all checked items
+        
         await Item.update(
           { category_id: category.id },
           { where: { id: { [db.Sequelize.Op.in]: productIds } } }
         );
       } else {
-        // Revert all items that were in this category to default 1
+        
         await Item.update(
           { category_id: 1 },
           { where: { category_id: category.id } }
@@ -114,7 +114,7 @@ exports.updateCategory = async (req, res) => {
   }
 };
 
-// 4. DELETE
+
 exports.deleteCategory = async (req, res) => {
   try {
     const { name } = req.body;
@@ -149,7 +149,7 @@ exports.deleteCategory = async (req, res) => {
   }
 };
 
-// 5. RESTORE
+
 exports.restoreCategory = async (req, res) => {
   try {
     const { name } = req.body;

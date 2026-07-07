@@ -4,7 +4,7 @@ const User = db.User;
 const Customer = db.Customer;
 const sequelize = db.sequelize;
 
-// Helper to enforce admin check
+
 const enforceAdmin = (req, res) => {
   if (!req.body.user || req.body.user.role !== 'admin') {
     res.status(403).json({ error: "Access denied. Admin role required." });
@@ -13,8 +13,8 @@ const enforceAdmin = (req, res) => {
   return true;
 };
 
-// ─── 1. GET ALL CUSTOMERS (admin list view) ──────────────────────────────────
-// Supports ?status=active (default) | deactivated | all & ?role=customer|admin|all
+
+
 exports.getCustomers = async (req, res) => {
   try {
     if (!enforceAdmin(req, res)) return;
@@ -71,12 +71,12 @@ exports.getCustomers = async (req, res) => {
   }
 };
 
-// ─── 2. GET SINGLE CUSTOMER (detail + addresses) ─────────────────────────────
+
 exports.getCustomerById = async (req, res) => {
   try {
     if (!enforceAdmin(req, res)) return;
 
-    const { id } = req.params; // user_id
+    const { id } = req.params; 
 
     const [customer] = await sequelize.query(
       `SELECT
@@ -116,13 +116,13 @@ exports.getCustomerById = async (req, res) => {
   }
 };
 
-// ─── 3. UPDATE CUSTOMER (admin can edit profile fields + email + role) ───────
-// Enhancement: admin can update role (admin/customer), email, name, and phone.
+
+
 exports.updateCustomer = async (req, res) => {
   try {
     if (!enforceAdmin(req, res)) return;
 
-    const { id } = req.params; // user_id
+    const { id } = req.params; 
     const { email, first_name, last_name, phone, role } = req.body;
 
     const user = await User.findByPk(id);
@@ -130,15 +130,15 @@ exports.updateCustomer = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Build the update payload for the users table
+    
     const userUpdates = {};
 
-    // Update email if provided and changed
+    
     if (email && email.trim() !== user.email) {
       userUpdates.email = email.trim();
     }
 
-    // Validate and update role if provided
+    
     if (role !== undefined && role !== null && role !== '') {
       if (!['admin', 'customer'].includes(role)) {
         return res.status(400).json({ error: "Invalid role. Must be 'admin' or 'customer'." });
@@ -146,7 +146,7 @@ exports.updateCustomer = async (req, res) => {
       userUpdates.role = role;
     }
 
-    // Hash and update password if provided
+    
     const { password } = req.body;
     if (password && password.trim() !== '') {
       if (password.trim().length < 6) {
@@ -160,7 +160,7 @@ exports.updateCustomer = async (req, res) => {
       await user.update(userUpdates);
     }
 
-    // Update customer profile row
+    
     const customer = await Customer.findOne({ where: { user_id: id } });
     if (customer) {
       let imagePath = customer.profile_image_path;
@@ -196,20 +196,20 @@ exports.updateCustomer = async (req, res) => {
   }
 };
 
-// ─── 4. SOFT-DELETE / DEACTIVATE CUSTOMER (sets deleted_at on users row) ─────
-// Follows the same soft-delete pattern used by deactivateUser in user controller.
+
+
 exports.deactivateCustomer = async (req, res) => {
   try {
     if (!enforceAdmin(req, res)) return;
 
-    const { id } = req.params; // user_id
+    const { id } = req.params; 
 
     const user = await User.findOne({ where: { id, deleted_at: null } });
     if (!user) {
       return res.status(404).json({ error: "Customer not found" });
     }
 
-    // Prevent accidental deactivation of admin accounts via this endpoint
+    
     if (user.role === "admin") {
       return res.status(403).json({ error: "Cannot deactivate an admin account via this endpoint" });
     }
@@ -222,12 +222,12 @@ exports.deactivateCustomer = async (req, res) => {
   }
 };
 
-// ─── 5. REACTIVATE CUSTOMER (clears deleted_at on users row) ─────────────────
+
 exports.reactivateCustomer = async (req, res) => {
   try {
     if (!enforceAdmin(req, res)) return;
 
-    const { id } = req.params; // user_id
+    const { id } = req.params; 
 
     const user = await User.findByPk(id);
     if (!user) {
@@ -246,7 +246,7 @@ exports.reactivateCustomer = async (req, res) => {
   }
 };
 
-// ─── 6. CREATE CUSTOMER (admin can create new user + customer profile) ───────
+
 exports.createCustomer = async (req, res) => {
   try {
     if (!enforceAdmin(req, res)) return;

@@ -1,7 +1,7 @@
--- ============================================================
--- Tunify Database Reconstruction & Seed Script (v4 - Premium Mock)
--- WARNING: This will drop the database and delete all existing data.
--- ============================================================
+
+
+
+
 
 DROP DATABASE IF EXISTS tunify_db;
 CREATE DATABASE tunify_db;
@@ -222,11 +222,11 @@ CREATE TABLE payments (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- ------------------------------------------------------------
--- 2. Seed Initial Data
--- ------------------------------------------------------------
 
--- Seed Admin User (Username: admin@tunify.com, Password: password123)
+
+
+
+
 INSERT INTO users (id, email, password_hash, role) VALUES (1, 'admin@tunify.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'admin');
 INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (1, 1, 'Alwin', 'Benitez', '+63 912 000 0000');
 INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (1, 1, 'Home', '123 Maginhawa St., Brgy. Teachers Village', 'Quezon City', 'Metro Manila', '1100', TRUE);
@@ -267,7 +267,7 @@ INSERT INTO category (id, name, description) VALUES
 (5, 'vocals', 'Microphones and vocal gear'),
 (6, 'accessories', 'Accessories and parts');
 
--- Seed 15 Customer Users
+
 INSERT INTO users (id, email, password_hash, role) VALUES (2, 'juan.cruz@gmail.com', '$2b$10$xhfjaXHcsCfwetUq82cceO5gcaDfXw/AcgleqG1g2DR5wSMI2gKtS', 'customer');
 INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (2, 2, 'Juan', 'Cruz', '+63 917 123 4567');
 INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (2, 2, 'Home', '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', TRUE);
@@ -314,7 +314,7 @@ INSERT INTO users (id, email, password_hash, role) VALUES (16, 'nene.aquino@gmai
 INSERT INTO customer (id, user_id, first_name, last_name, phone) VALUES (16, 16, 'Nene', 'Aquino', '+63 931 567 8901');
 INSERT INTO customer_addresses (id, user_id, label, street, city, province, zip_code, is_default) VALUES (16, 16, 'Home', 'Times St', 'Quezon City', 'Metro Manila', '1104', TRUE);
 
--- Seed all 32 products into item table
+
 INSERT INTO item (id, brand_id, category_id, name, description, sell_price, quantity, is_featured, is_carousel) VALUES
 (1, 1, 1, 'Stratocaster Standard', 'Classic alder body electric guitar with maple neck and single-coil pickups, known for its bright, versatile tone.', 32500, 11, TRUE, TRUE),
 (2, 4, 2, 'Roland TD-17KVX', 'Electronic drum kit with mesh-head snare and toms, ideal for practice and live performance with realistic feel.', 68000, 26, TRUE, TRUE),
@@ -349,7 +349,7 @@ INSERT INTO item (id, brand_id, category_id, name, description, sell_price, quan
 (31, 6, 1, 'SR500E Bass', 'Lightweight electric bass guitar with active electronics for a modern tone.', 32800, 29, FALSE, FALSE),
 (32, 3, 3, 'AvantGrand N1X', 'Hybrid piano combining acoustic grand piano action with digital sound technology.', 215000, 1, FALSE, TRUE);
 
--- Seed item images (primary image for all 32 items)
+
 INSERT INTO item_images (item_id, image_path, is_primary, sort_order) VALUES
 (1, 'images/products/Stratocaster Standard.jpg', TRUE, 1),
 (2, 'images/products/Roland TD-17KVX.jpg', TRUE, 1),
@@ -384,7 +384,7 @@ INSERT INTO item_images (item_id, image_path, is_primary, sort_order) VALUES
 (31, 'images/products/SR500E Bass.jpg', TRUE, 1),
 (32, 'images/products/AvantGrand N1X.jpg', TRUE, 1);
 
--- Seed restock logs (replenishments & starting stocks)
+
 INSERT INTO restock_logs (id, item_id, supplier_id, quantity, cost_price, created_at) VALUES
 (1, 1, 1, 14, 19500, '2025-12-01 10:00:00'),
 (2, 2, 3, 6, 40800, '2025-12-01 10:00:00'),
@@ -438,7 +438,7 @@ INSERT INTO restock_logs (id, item_id, supplier_id, quantity, cost_price, create
 (50, 16, 2, 18, 14700, '2026-06-20 23:27:43'),
 (51, 13, 3, 31, 26700, '2026-07-01 23:50:12');
 
--- Seed orderinfo (142 orders over 6 months)
+
 INSERT INTO orderinfo (id, user_id, address_id, status_id, shipping_street, shipping_city, shipping_province, shipping_zip, shipping_fee, date_placed, date_shipped) VALUES
 (2401, 2, 2, 2, '150 Rizal Ave', 'Manila', 'Metro Manila', '1000', 100, '2026-01-04 22:29:38', NULL),
 (2402, 13, 13, 4, '55 Tandang Sora Ave', 'Quezon City', 'Metro Manila', '1116', 100, '2026-01-07 00:15:17', '2026-01-09 07:15:17'),
@@ -583,7 +583,7 @@ INSERT INTO orderinfo (id, user_id, address_id, status_id, shipping_street, ship
 (2541, 16, 16, 4, 'Times St', 'Quezon City', 'Metro Manila', '1104', 100, '2026-07-04 22:34:25', '2026-07-08 02:34:25'),
 (2542, 11, 11, 4, '34 Bonifacio St', 'Caloocan City', 'Metro Manila', '1400', 100, '2026-07-04 23:20:49', '2026-07-07 01:20:49');
 
--- Seed orderline
+
 INSERT INTO orderline (orderinfo_id, item_id, cost_price, quantity, sell_price) VALUES
 (2401, 1, 19500, 1, 32500),
 (2402, 6, 111000, 1, 185000),
@@ -871,7 +871,7 @@ INSERT INTO orderline (orderinfo_id, item_id, cost_price, quantity, sell_price) 
 (2542, 16, 14700, 1, 24500),
 (2542, 21, 5520, 1, 9200);
 
--- Seed payments
+
 INSERT INTO payments (orderinfo_id, payment_method, amount_paid, payment_status, transaction_ref, paid_at) VALUES
 (2401, 'card', 32600, 'paid', 'CARD-20260104-2401', '2026-01-04 22:29:38'),
 (2402, 'gcash', 188300, 'paid', 'GC-20260107-2402', '2026-01-07 00:15:17'),
@@ -1016,7 +1016,7 @@ INSERT INTO payments (orderinfo_id, payment_method, amount_paid, payment_status,
 (2541, 'cod', 120400, 'paid', NULL, '2026-07-06 22:34:25'),
 (2542, 'card', 45300, 'paid', 'CARD-20260704-2542', '2026-07-04 23:20:49');
 
--- Seed reviews
+
 INSERT INTO review (id, user_id, item_id, rating, comment, created_at) VALUES
 (1, 2, 1, 5, 'Unbelievable sound quality! Best Stratocaster I''ve ever owned.', CURRENT_TIMESTAMP),
 (2, 3, 2, 5, 'Very realistic mesh drumheads. Roland did it again.', CURRENT_TIMESTAMP),
